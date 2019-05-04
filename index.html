@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset=utf-8>
+  <meta name=viewport content="width=device-width, initial-scale=1.0">
+  <title>forkphorus</title>
+  <link rel=stylesheet href=phosphorus.css>
+  <link rel=stylesheet href=player.css>
+  <link rel=stylesheet href=index.css>
+</head>
+
+<body>
+
+  <div class="theme-select">
+    <a class="switch-theme">switch theme</a>
+  </div>
+
+  <script>
+    (function() {
+      // Implement theme selector early to remove any white loading flash there would otherwise be.
+      // localStorage is used to remember dark mode between reloads
+      function toggleDark(dark) {
+        document.documentElement.classList.toggle('dark', dark);
+        localStorage.setItem('userPrefersDark', document.documentElement.classList.contains('dark'));
+      }
+      document.querySelector('.theme-select a').addEventListener('click', function() {
+        toggleDark();
+      });
+      if (localStorage.getItem('userPrefersDark') === 'true') {
+        toggleDark(true);
+      }
+    }());
+  </script>
+
+  <div id="app">
+
+    <div class=area id=title-area>
+      <h1 class=title>forkphorus</h1>
+      <p>forkphorus runs Scratch 2 and 3 projects really fast by compiling them to JavaScript. Try it out by pasting a project ID or URL into the field below, by <a class="upload-button">selecting<input id="upload-file-input" type="file" autocomplete="off" accept=".sb2,.sb3"></a> or dropping a project file on the page, or by <a class=dropdown>choosing an example<select id=examples>
+        <option value></option>
+        <option value=276660763>Scratch 3.0 is here! by ScratchCat</option>
+        <option value=280227362>Spring Physics by HowToLogic</option>
+        <option value=11397100>3D Remix by DadOfMrLog</option>
+        <option value=15945630>O by DCPU-16</option>
+        <option value=10128407>Paper Minecraft by griffpatch</option>
+        <option value=16207935>Alone in the depths by sticku</option>
+        <option value=16205373>3D Framework by DadOfMrLog</option>
+        <!-- <option value=31903442>gb.sb2 [Dr. Mario] by DCPU-16</option>
+        <option value=34791164>gb.sb2 [Mario Land 2] by DCPU-16</option> -->
+        <option value=21554369>Epic Ninja by griffpatch</option>
+        <option value=15832807>Pretty by blob8108</option>
+      </select></a>.</p>
+    </div>
+
+    <div class=area id=player-area>
+      <div class=controls>
+        <span class="button stop"></span>
+        <span class="button pause"></span>
+        <span class="button flag" title="Shift+click to enable turbo mode."></span>
+        <div class="turbo">Turbo Mode</div>
+        <span class="button full-screen"></span>
+      </div>
+      <div class=player></div>
+    </div>
+
+    <div class=internal-error>
+      An internal error occurred. <a id=error-bug-link target=_blank href=https://github.com/forkphorus/forkphorus/issues/new>Click here</a> to file a bug report.
+    </div>
+
+    <div class=title>
+      <div class=progress-bar></div>
+      <input class=url value=https://scratch.mit.edu/projects/>
+      <a target=_blank class=project-link title="View project on Scratch"></a>
+    </div>
+
+    <div class=area id=project-area>
+
+      <section>
+        <h1>Report a problem</h1>
+        <p>forkphorus is still in development and has many bugs. <a id=bug-link target=_blank href=https://github.com/forkphorus/forkphorus/issues/new>Click here</a> to report a problem with this project.</p>
+      </section>
+
+      <section class=package>
+        <h1>Embed this project</h1>
+        <p>Include the forkphorus player in your web site.</p>
+        <p class="embed-options">
+          <input readonly id=embed-code>
+          <input type=checkbox id=embed-auto-start checked>
+          <label for=embed-auto-start>Start automatically</label>
+          <input type=checkbox id=embed-light-content>
+          <label for=embed-light-content>Light controls</label>
+          <input type=checkbox id=embed-hide-controls>
+          <label for=embed-hide-controls>Hide UI</label>
+        </p>
+      </section>
+
+      <section class=package>
+        <h1>Package this project</h1>
+        <p>Get a link to a web page that automatically runs your project.</p>
+        <p class="package-options">
+          <a href=# target=_blank id=package-link>Package</a>
+          <input type=checkbox id=package-turbo>
+          <label for=package-turbo>Turbo mode</label>
+          <input type=checkbox id=package-full-screen checked>
+          <label for=package-full-screen>Full screen</label>
+        </p>
+      </section>
+    </div>
+
+    <section>
+      <h1>Credits</h1>
+      <p>forkphorus is a fork of <a href="https://phosphorus.github.io/">phosphorus</a> by <a href="https://github.com/nathan">Nathan</a>. Its CPS-style compilation and overall design was inspired by <a href="https://github.com/RHY3756547">Rhys</a>'s <a href="https://code.google.com/p/sb2-js/">sb2.js</a>. It would have more bugs if not for <a href="https://github.com/trumank">Truman</a> and <a href="https://github.com/tjvr">Tim</a>. It uses the <a href="https://stuk.github.io/jszip/">JSZip</a> library, created by <a href="https://github.com/stuk">Stuart Knightley</a>, <a href="https://github.com/dduponchel">David Duponchel</a>, Franz Buchinger, and <a href="https://github.com/aadsm">António Afonso</a>, to read <code>.sb2</code> and <code>.sb3</code> files, and the <a href="https://github.com/canvg/canvg">canvg</a> library to render SVGs in <code>&lt;canvas&gt;</code> elements.</p>
+
+      <h1>Code</h1>
+      <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
+    </section>
+  </div>
+
+  <script src=lib/fontfaceobserver.standalone.js></script>
+  <script src=lib/jszip.min.js></script>
+  <script src=lib/rgbcolor.js></script>
+  <script src=lib/StackBlur.js></script>
+  <script src=lib/canvg.js></script>
+  <script src="phosphorus.dist.js"></script>
+  <script src="player.js"></script>
+
+  <script>
+
+  (function() {
+    'use strict';
+
+    var PROJECT_PREFIX = 'https://scratch.mit.edu/projects/';
+
+    var initialId = location.hash.substr(1);
+    if (initialId[0] === '.') initialId = '';
+
+    var titleArea = document.querySelector('#title-area');
+    var playerArea = document.querySelector('#player-area');
+    var projectArea = document.querySelector('#project-area');
+
+    playerArea.style.height = projectArea.style.height = 'auto';
+    var titleAreaHeight = titleArea.offsetHeight;
+    var playerAreaHeight = playerArea.offsetHeight;
+    var projectAreaHeight = projectArea.offsetHeight;
+    playerArea.style.height = projectArea.style.height = 0;
+
+    var examples = document.querySelector('#examples');
+    var urlInput = document.querySelector('.url');
+    urlInput.value = PROJECT_PREFIX + initialId;
+
+    var progressBar = document.querySelector('.progress-bar');
+    var player = document.querySelector('.player');
+    var projectLink = document.querySelector('.project-link');
+    var bugLink = document.querySelector('#bug-link');
+
+    var uploadFileInput = document.querySelector('#upload-file-input');
+
+    var packageLink = document.querySelector('#package-link');
+    var packageTurbo = document.querySelector('#package-turbo');
+    var packageFullScreen = document.querySelector('#package-full-screen');
+
+    var embedCode = document.querySelector('#embed-code');
+    var embedAutoStart = document.querySelector('#embed-auto-start');
+    var embedLightContent = document.querySelector('#embed-light-content');
+    var embedHideControls = document.querySelector('#embed-hide-controls');
+
+    var timeout;
+    urlInput.addEventListener('input', function() {
+      var ss = urlInput.selectionStart;
+      var se = urlInput.selectionEnd;
+      var url = urlInput.value;
+      var id = url.match(/\d+/g) || [''];
+      while (id.length > 1 && id.indexOf(P.player.projectId) > -1) {
+        id.splice(id.indexOf(P.player.projectId), 1);
+      }
+      id = id[0];
+      urlInput.value = url = PROJECT_PREFIX + id;
+      urlInput.selectionStart = urlInput.selectionEnd = Math.max(PROJECT_PREFIX.length, ss);
+      clearTimeout(timeout);
+      if (P.player.projectId !== id) {
+        timeout = setTimeout(function() {
+          location.hash = '#' + id;
+        }, 300);
+      }
+    });
+    urlInput.addEventListener('focus', function() {
+      setTimeout(function() {
+        if (/\d/.test(urlInput.value)) {
+          urlInput.select();
+        }
+      });
+    });
+
+    examples.addEventListener('change', function() {
+      if (examples.value) {
+        location.hash = '#' + examples.value;
+        examples.selectedIndex = 0;
+      }
+    });
+
+    window.addEventListener('hashchange', function() {
+      var id = location.hash.substr(1);
+      if (id === '') {
+        show('');
+        if (P.player.stage) {
+          P.player.stage.destroy();
+        }
+        return;
+      }
+
+      if (id[0] !== '.') {
+        if (+id !== +id) id = '';
+        urlInput.value = PROJECT_PREFIX + id;
+      }
+
+      loadProject(id);
+    });
+
+    function show(id) {
+      titleArea.style.height = id ? 0 : titleAreaHeight + 'px';
+      playerArea.style.height = id ? playerAreaHeight + 'px' : 0
+      projectArea.style.height = id ? projectAreaHeight + 'px' : 0;
+      if (!id) {
+        urlInput.focus();
+      }
+    }
+
+    function loadProject(id) {
+      if (id === '' || id[0] === '.') {
+        return;
+      }
+      show(id);
+      P.player.load(id)
+        .then((stage) => {
+          P.player.start(stage, true);
+        });
+      updateLinks();
+    }
+
+    function updateLinks() {
+      projectLink.href = P.player.projectURL;
+      bugLink.href = P.player.createBugLink('Describe the issue below:', '');
+      updateEmbedCode();
+      updatePackageLink();
+    }
+
+    function updatePackageLink() {
+      if (P.player.projectId) {
+        var url = location.origin + '/app.html';
+        url += '?id=' + P.player.projectId;
+        url += '&turbo=' + packageTurbo.checked;
+        url += '&full-screen=' + packageFullScreen.checked;
+        packageLink.href = url;
+      } else {
+        packageLink.href = 'about:blank';
+      }
+    }
+    packageTurbo.addEventListener('change', updatePackageLink);
+    packageFullScreen.addEventListener('change', updatePackageLink);
+
+    function updateEmbedCode(e) {
+      // Hide UI replaces other options.
+      embedAutoStart.disabled = embedHideControls.checked;
+      embedLightContent.disabled = embedHideControls.checked;
+      if (embedHideControls.checked) {
+        embedAutoStart.checked = true;
+        embedLightContent.checked = false;
+      }
+
+      if (P.player.projectId) {
+        var source = location.protocol + '//' + location.host + '/embed.js?id=' + P.player.projectId;
+        if (embedHideControls.checked) {
+          source += '&ui=false';
+        } else {
+          source += '&auto-start=' + embedAutoStart.checked;
+          source += '&light-content=' + embedLightContent.checked;
+        }
+        // We need to break up the closing script tag, otherwise things break.
+        embedCode.value = '<script src="' + source + '"></scrip' + 't>';
+      } else {
+        embedCode.value = '';
+      }
+
+      // Focus the embed code if we are an event callback
+      if (e) {
+        selectEmbedCode();
+      }
+    }
+    function selectEmbedCode() {
+      embedCode.select();
+    }
+
+    embedCode.addEventListener('focus', selectEmbedCode);
+    embedCode.addEventListener('click', selectEmbedCode);
+    embedHideControls.addEventListener('change', updateEmbedCode);
+    embedAutoStart.addEventListener('change', updateEmbedCode);
+    embedLightContent.addEventListener('change', updateEmbedCode);
+
+    // Add transitions to certain elements
+    // TODO: move to CSS?
+    function addTransition(el) {
+      el.style.WebkitTransition =
+        el.style.MozTransition =
+        el.style.OTransition =
+        el.style.transition = 'height 0.2s';
+    }
+    addTransition(titleArea);
+    addTransition(playerArea);
+    addTransition(projectArea);
+
+    // File loading
+    function cancelDragEvent(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+    function loadProjectBuffer(buffer, ext) {
+      function startLoad() {
+        if (ext === 'sb2') {
+          return P.sb2.loadSB2Project(buffer);
+        } else if (ext === 'sb3') {
+          const loader = new P.sb3.SB3FileLoader(buffer);
+          return loader.load();
+        }
+      }
+      startLoad().then((stage) => {
+        P.player.start(stage, true);
+        updateLinks();
+      });
+    }
+
+    document.body.addEventListener('dragover', cancelDragEvent);
+    document.body.addEventListener('dragenter', cancelDragEvent);
+    document.body.addEventListener('drop', function(e) {
+      e.preventDefault();
+
+      var f = e.dataTransfer.files[0];
+      if (!f) {
+        return;
+      }
+
+      var ext = f.name.split('.').pop();
+      if (!['sb2', 'sb3'].includes(ext)) {
+        return;
+      }
+      show('.' + ext);
+      P.player.projectId = 'local ' + ext;
+      location.hash = '.' + ext;
+      P.IO.fileAsArrayBuffer(f)
+        .then((buffer) => loadProjectBuffer(buffer, ext));
+    });
+    uploadFileInput.addEventListener('change', function(e) {
+      var files = e.target.files;
+      if (!files[0]) {
+        return;
+      }
+      var ext = files[0].name.split('.').pop();
+      if (!['sb2', 'sb3'].includes(ext)) {
+        return;
+      }
+      show('.' + ext);
+      P.IO.fileAsArrayBuffer(files[0])
+        .then((buffer) => loadProjectBuffer(buffer, ext));
+    });
+
+    // Load any initial project ID
+    loadProject(initialId);
+
+  }());
+
+  </script>
+
+</body>
+
+</html>

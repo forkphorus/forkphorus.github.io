@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <style>
+      /* How to apply styles to the forkphorus embed <iframe> */
+      .forkphorus-embed {
+        margin: 10px;
+      }
+    </style>
+  </head>
+
+  <body>
+    Something before.<br>
+
+    <!-- Example of using the embed API -->
+    <script>
+
+      // Forkphorus uses the messaging API to send messages to and from the parent window.
+      window.addEventListener('message', function(e) {
+        // Make sure to check the origin to make sure it's coming from forkphorus.
+        if (e.origin !== 'https://forkphorus.github.io') {
+          return;
+        }
+
+        // data will be sent from forkphorus to the parent website.
+        var data = e.data;
+        console.log('got message from forkphorus', data);
+
+        // `id` (string) - The unique (random) ID of the forkphorus embed that sent this message.
+        var id = data.id;
+        // `type` (string) - The type of message that this is. (we'll see what this means later)
+        var type = data.type;
+        // `payload` (varies) - The payload part of the message. (varies by type)
+        var payload = data.payload;
+
+        switch (type) {
+          case 'stateChange':
+            // payload is a string of the current state ('loading', 'ready')
+            console.log('forkphorus state changed to', payload);
+            break;
+        }
+      });
+    </script>
+
+    <!-- This script will be replaced with the iframe. -->
+    <script src="https://forkphorus.github.io/embed.js?id=283514716&auto-start=true&light-content=false"></script>
+
+    <br>Something after.
+
+  </body>
+</html>
