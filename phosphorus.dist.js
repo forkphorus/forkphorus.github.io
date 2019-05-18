@@ -38,6 +38,7 @@ var P;
         const features = location.search.replace('?', '').split('&');
         config.debug = features.indexOf('debug') > -1;
         config.useWebGL = features.indexOf('webgl') > -1;
+        config.preciseTimers = features.indexOf('preciseTimers') > -1;
         config.scale = window.devicePixelRatio || 1;
         config.hasTouchEvents = 'ontouchstart' in document;
         config.framerate = 30;
@@ -3925,7 +3926,12 @@ var P;
                         return 'self.mouseY';
                     }
                     else if (e[0] === 'timer') {
-                        return '((runtime.now - runtime.timerStart) / 1000)';
+                        if (P.config.preciseTimers) {
+                            return '((runtime.rightNow() - runtime.timerStart) / 1000)';
+                        }
+                        else {
+                            return '((runtime.now - runtime.timerStart) / 1000)';
+                        }
                     }
                     else if (e[0] === 'distanceTo:') {
                         return 'S.distanceTo(' + val(e[1]) + ')';
@@ -5260,23 +5266,21 @@ var P;
                 do {
                     this.now = this.rightNow();
                     for (THREAD = 0; THREAD < queue.length; THREAD++) {
-                        if (queue[THREAD]) {
+                        const thread = queue[THREAD];
+                        if (thread) {
                             // Load thread data
-                            S = queue[THREAD].sprite;
-                            IMMEDIATE = queue[THREAD].fn;
-                            BASE = queue[THREAD].base;
-                            CALLS = queue[THREAD].calls;
+                            S = thread.sprite;
+                            IMMEDIATE = thread.fn;
+                            BASE = thread.base;
+                            CALLS = thread.calls;
                             C = CALLS.pop();
                             STACK = C.stack;
                             R = STACK.pop();
-                            delete queue[THREAD];
+                            queue[THREAD] = undefined;
                             WARP = 0;
                             while (IMMEDIATE) {
                                 const fn = IMMEDIATE;
                                 IMMEDIATE = null;
-                                // if (P.config.debug) {
-                                //   console.log('running', S.name, fn);
-                                // }
                                 fn();
                             }
                             STACK.push(R);
@@ -6325,7 +6329,12 @@ var P;
                     return booleanExpr('false');
                 },
                 sensing_timer(block) {
-                    return numberExpr('((runtime.now - runtime.timerStart) / 1000)');
+                    if (P.config.preciseTimers) {
+                        return numberExpr('((runtime.rightNow() - runtime.timerStart) / 1000)');
+                    }
+                    else {
+                        return numberExpr('((runtime.now - runtime.timerStart) / 1000)');
+                    }
                 },
                 sensing_of(block) {
                     const property = block.fields.PROPERTY[0];
