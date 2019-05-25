@@ -8,6 +8,7 @@ See the README for more information.
 
 The MIT License (MIT)
 
+Copyright (c) 2013-2017 Nathan Dinsmore
 Copyright (c) 2019 Thomas Weber
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -41,7 +42,6 @@ var P;
         config.preciseTimers = features.indexOf('preciseTimers') > -1;
         config.scale = window.devicePixelRatio || 1;
         config.hasTouchEvents = 'ontouchstart' in document;
-        config.framerate = 30;
         config.PROJECT_API = 'https://projects.scratch.mit.edu/$id';
     })(config = P.config || (P.config = {}));
 })(P || (P = {}));
@@ -5121,8 +5121,10 @@ var P;
                 this.baseNow = 0;
                 this.now = 0;
                 this.isTurbo = false;
+                this.framerate = 30;
                 // Fix scoping
                 this.onError = this.onError.bind(this);
+                this.step = this.step.bind(this);
             }
             startThread(sprite, base) {
                 const thread = new Thread(sprite, base, base, [{
@@ -5204,7 +5206,7 @@ var P;
                     return;
                 window.addEventListener('error', this.onError);
                 this.baseTime = Date.now();
-                this.interval = setInterval(this.step.bind(this), 1000 / P.config.framerate);
+                this.interval = setInterval(this.step, 1000 / this.framerate);
                 if (audioContext)
                     audioContext.resume();
             }
@@ -5215,12 +5217,24 @@ var P;
                 if (this.interval) {
                     this.baseNow = this.rightNow();
                     clearInterval(this.interval);
-                    delete this.interval;
+                    this.interval = 0;
                     window.removeEventListener('error', this.onError);
                     if (audioContext)
                         audioContext.suspend();
                 }
                 this.isRunning = false;
+            }
+            /**
+             * Resets the interval loop without the effects of pausing/starting
+             */
+            resetInterval() {
+                if (!this.isRunning) {
+                    throw new Error('cannot restart interval when paused');
+                }
+                if (this.interval) {
+                    clearInterval(this.interval);
+                }
+                this.interval = setInterval(this.step, 1000 / this.framerate);
             }
             stopAll() {
                 this.stage.hidePrompt = false;
@@ -5293,7 +5307,7 @@ var P;
                             queue.splice(i, 1);
                         }
                     }
-                } while ((this.isTurbo || !VISUAL) && Date.now() - start < 1000 / P.config.framerate && queue.length);
+                } while ((this.isTurbo || !VISUAL) && Date.now() - start < 1000 / this.framerate && queue.length);
                 this.stage.draw();
             }
             onError(e) {
