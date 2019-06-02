@@ -14,6 +14,7 @@
    * @property {number} finished
    * @property {number} total
    * @property {function():void} finish
+   * @property {function(number):void} percent
    */
 
    /**
@@ -89,6 +90,11 @@
       get finished() { return finished; },
       finish() {
         total = finished = 1;
+        updateProgress();
+      },
+      percent(percent) {
+        total = 1;
+        finished = percent;
         updateProgress();
       },
     };
@@ -195,6 +201,26 @@
   }
 
   /**
+   * @param {any} files Files from an SBDL result
+   * @returns {Blob} A Blob representation of the zip
+   */
+  function createArchive(files) {
+    const progressBar = createProgressBar('Creating archive');
+    const zip = new JSZip();
+    for (const file of files) {
+      const path = file.path;
+      const data = file.data;
+      zip.file(path, data);
+    }
+    return zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+    }, function updateCallback(/** @type {any} */ metadata) {
+      progressBar.percent(metadata.percent);
+    });
+  }
+
+  /**
    * Fetches a project, and converts its zip archive to a data: URL
    * @param {string} id The project ID
    * @returns {Promise<ProjectResult>}
@@ -212,9 +238,9 @@
         if (result.type !== 'zip') {
           throw new Error('unknown result type: ' + result.type);
         }
-        return SBDL.createArchive(result.files, new JSZip());
+        return createArchive(result.files);
       })
-      .then((buffer) => blobToURL(buffer))
+      .then((blob) => blobToURL(blob))
       .then((url) => {
         return {
           url: url,
@@ -329,6 +355,7 @@
     })();
     </script>
 
+    <!-- project data & player -->
     <script>
     (function() {
 
