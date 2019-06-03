@@ -5928,6 +5928,21 @@ var P;
                     el.setAttribute('font-family', FONTS['Sans Serif']);
                 }
             }
+            // Special treatment for the viewBox attribute
+            if (svg.hasAttribute('viewBox')) {
+                // I think viewBox is supposed to be space separated, but Scratch sometimes make comma separated ones.
+                const viewBox = svg.getAttribute('viewBox').split(/ |,/).map((i) => +i);
+                if (viewBox.every((i) => !isNaN(i))) {
+                    const [x, y, w, h] = viewBox;
+                    // Fix width/height to include the viewBox min x/y
+                    svg.setAttribute('width', (w + x).toString());
+                    svg.setAttribute('height', (h + y).toString());
+                }
+                else {
+                    console.warn('weird viewBox', svg.getAttribute('viewBox'));
+                }
+                svg.removeAttribute('viewBox');
+            }
         }
         // Implements base SB3 loading logic.
         // Needs to be extended to add file loading methods.
