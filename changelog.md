@@ -1,5 +1,13 @@
 # forkphorus changelog
 
+*Dates reflect when the changes were developed, and recent changes may not yet be deployed to forkphorus.github.io.*
+
+## June 10
+
+- sb2 and sb3: Fix `play sound until done` not respecting `stop all sounds`
+  - The sound would indeed stop, but the wait for the sound to finish would remain.
+  - This probably fixes issues with sounds not playing until after a duration of time.
+
 ## June 9
 
 - Scratch 3 compiler optimizations: some scripts can run significantly faster than before!
