@@ -7770,6 +7770,9 @@ var P;
     inputLibrary['makeymakey_menu_KEY'] = function (util) {
         return util.fieldInput('KEY');
     };
+    inputLibrary['makeymakey_menu_SEQUENCE'] = function (util) {
+        return util.fieldInput('SEQUENCE');
+    };
     inputLibrary['matrix'] = function (util) {
         return util.fieldInput('MATRIX');
     };
@@ -8072,31 +8075,61 @@ var P;
     };
     hatLibrary['makeymakey_whenMakeyKeyPressed'] = {
         handle(util) {
-            // TODO: support all other keys
-            // TODO: support patterns
-            // Will probably be implemented as a very *interesting* "when any key pressed" handler
-            // TODO: support all inputs
-            const KEY = util.getInput('KEY', 'any');
-            const keyMap = {
-                // The key will be a full expression, including quotes around strings.
-                '"SPACE"': 'space',
-                '"UP"': 'up arrow',
-                '"DOWN"': 'down arrow',
-                '"LEFT"': 'left arrow',
-                '"RIGHT"': 'right arrow',
-                '"w"': 'w',
-                '"a"': 'a',
-                '"s"': 's',
-                '"d"': 'd',
-                '"f"': 'f',
-                '"g"': 'g',
-            };
-            if (keyMap.hasOwnProperty(KEY)) {
-                const keyCode = P.runtime.getKeyCode(keyMap[KEY]);
-                util.target.listeners.whenKeyPressed[keyCode].push(util.startingFunction);
+            const KEY = util.getInput('KEY', 'string');
+            try {
+                const value = P.runtime.scopedEval(KEY);
+                var keycode = P.runtime.getKeyCode(value);
+            }
+            catch (e) {
+                console.warn('makeymakey key generation error', e);
+                return;
+            }
+            if (keycode === 'any') {
+                for (var i = 128; i--;) {
+                    util.target.listeners.whenKeyPressed[i].push(util.startingFunction);
+                }
             }
             else {
-                util.compiler.warn('unknown makey makey key', KEY);
+                util.target.listeners.whenKeyPressed[keycode].push(util.startingFunction);
+            }
+        },
+    };
+    hatLibrary['makeymakey_whenCodePressed'] = {
+        handle(util) {
+            const SEQUENCE = util.getInput('SEQUENCE', 'string');
+            try {
+                var sequence = P.runtime.scopedEval(SEQUENCE);
+            }
+            catch (e) {
+                console.warn('makeymakey sequence generation error', e);
+                return;
+            }
+            const ARROWS = ['up', 'down', 'left', 'right'];
+            const keys = sequence.toLowerCase().split(' ')
+                .map((key) => {
+                if (ARROWS.indexOf(key) > -1) {
+                    return P.runtime.getKeyCode(key + ' arrow');
+                }
+                else {
+                    return P.runtime.getKeyCode(key);
+                }
+            });
+            const targetFunction = util.startingFunction;
+            let sequenceIndex = 0;
+            for (let key = 128; key--;) {
+                util.target.listeners.whenKeyPressed[key].push(function () {
+                    const expectedKey = keys[sequenceIndex];
+                    if (key !== expectedKey) {
+                        sequenceIndex = 0;
+                    }
+                    else {
+                        sequenceIndex++;
+                        if (sequenceIndex === keys.length) {
+                            sequenceIndex = 0;
+                            targetFunction();
+                        }
+                    }
+                });
             }
         },
     };
