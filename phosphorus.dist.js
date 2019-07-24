@@ -40,6 +40,7 @@ var P;
         config.debug = features.indexOf('debug') > -1;
         config.useWebGL = features.indexOf('webgl') > -1;
         config.useCrashMonitor = features.indexOf('crashmonitor') > -1;
+        config.supportVideoSensing = features.indexOf('video') > -1;
         config.scale = window.devicePixelRatio || 1;
         config.hasTouchEvents = 'ontouchstart' in document;
         config.PROJECT_API = 'https://projects.scratch.mit.edu/$id';
@@ -2252,6 +2253,27 @@ var P;
                 renderer.drawLayer(this.renderer.penLayer);
                 this.drawChildren(renderer, skip);
             }
+            showVideo(visible) {
+                if (P.config.supportVideoSensing) {
+                    if (visible) {
+                        if (!this.videoElement) {
+                            this.videoElement = document.createElement('video');
+                            this.videoElement.onloadedmetadata = () => {
+                                this.videoElement.play();
+                            };
+                            this.root.insertBefore(this.videoElement, this.canvas);
+                            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+                                .then((stream) => this.videoElement.srcObject = stream);
+                        }
+                        this.videoElement.style.display = 'block';
+                    }
+                    else {
+                        if (this.videoElement) {
+                            this.videoElement.style.display = 'none';
+                        }
+                    }
+                }
+            }
             // Implement rotatedBounds() to return something.
             rotatedBounds() {
                 return {
@@ -2262,6 +2284,7 @@ var P;
                 };
             }
             // Override currentCostumeIndex to automatically update the backdrop when a change is made.
+            // TODO: don't updateBackdrop() on every change (slow), only when needed for rendering
             get currentCostumeIndex() {
                 return this._currentCostumeIndex;
             }
@@ -2584,17 +2607,6 @@ var P;
                 this.direction = Math.atan2(dy, dx) * 180 / Math.PI + 90;
                 if (this.saying)
                     this.updateBubble();
-                b = this.rotatedBounds();
-                var x = this.scratchX;
-                var y = this.scratchY;
-                if (b.left < -240)
-                    x += -240 - b.left;
-                if (b.top > 180)
-                    y += 180 - b.top;
-                if (b.right > 240)
-                    x += 240 - b.left;
-                if (b.bottom < -180)
-                    y += -180 - b.top;
             }
             /**
              * Determines the distance from this Sprite's center to another position.
@@ -6643,6 +6655,7 @@ var P;
                      * Total number of labels created by this compiler.
                      */
                     this.labelCount = 0;
+                    this.usedExtensions = new Set();
                     this.target = target;
                     this.data = target.sb3data;
                     this.blocks = this.data.blocks;
@@ -6654,11 +6667,23 @@ var P;
                     return Object.keys(this.blocks)
                         .filter((i) => this.blocks[i].topLevel);
                 }
+                getOpcodeExtension(opcode) {
+                    const index = opcode.indexOf('_');
+                    if (index !== -1) {
+                        return opcode.substring(0, index);
+                    }
+                    return opcode;
+                }
+                useOpcode(opcode) {
+                    const extension = this.getOpcodeExtension(opcode);
+                    this.usedExtensions.add(extension);
+                }
                 /**
                  * Get the compiler for a statement
                  */
                 getStatementCompiler(opcode) {
                     if (compiler_1.statementLibrary[opcode]) {
+                        this.useOpcode(opcode);
                         return compiler_1.statementLibrary[opcode];
                     }
                     return null;
@@ -6668,6 +6693,7 @@ var P;
                  */
                 getInputCompiler(opcode) {
                     if (compiler_1.inputLibrary[opcode]) {
+                        this.useOpcode(opcode);
                         return compiler_1.inputLibrary[opcode];
                     }
                     return null;
@@ -6677,6 +6703,7 @@ var P;
                  */
                 getHatCompiler(opcode) {
                     if (compiler_1.hatLibrary[opcode]) {
+                        this.useOpcode(opcode);
                         return compiler_1.hatLibrary[opcode];
                     }
                     return null;
@@ -7687,6 +7714,13 @@ var P;
             util.writeLn('S.isDraggable = false;');
         }
     };
+    statementLibrary['videoSensing_videoToggle'] = function (util) {
+        const VIDEO_STATE = util.getInput('VIDEO_STATE', 'string');
+        util.writeLn(`switch (${VIDEO_STATE}) {`);
+        util.writeLn(`  case "off": self.showVideo(false); break;`);
+        util.writeLn(`  case "on": self.showVideo(true); break;`);
+        util.writeLn(`}`);
+    };
     // Legacy no-ops
     // https://github.com/LLK/scratch-vm/blob/bb42c0019c60f5d1947f3432038aa036a0fddca6/src/blocks/scratch3_motion.js#L19
     // https://github.com/LLK/scratch-vm/blob/bb42c0019c60f5d1947f3432038aa036a0fddca6/src/blocks/scratch3_looks.js#L248
@@ -7999,6 +8033,9 @@ var P;
     };
     inputLibrary['sound_volume'] = function (util) {
         return util.numberInput('(S.volume * 100)');
+    };
+    inputLibrary['videoSensing_menu_VIDEO_STATE'] = function (util) {
+        return util.fieldInput('VIDEO_STATE');
     };
     // Legacy no-ops
     // https://github.com/LLK/scratch-vm/blob/bb42c0019c60f5d1947f3432038aa036a0fddca6/src/blocks/scratch3_sensing.js#L74

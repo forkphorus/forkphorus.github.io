@@ -7,30 +7,27 @@
   <meta name="description" content="Forkphorus is a JavaScript compiler for Scratch 2 and Scratch 3 projects.">
   <title>forkphorus - phosphorus for Scratch 3</title>
   <meta name="google-site-verification" content="fxogd82_Q_zvblLPSbkmRDktBJG5MK8mH8Xeg8ONDEc" />
-  <link rel="stylesheet" href="phosphorus.css">
-  <link rel="stylesheet" href="player.css">
-  <link rel="stylesheet" href="studioview/studioview.css">
-  <link rel="stylesheet" href="index.css">
-
-  <!-- I've seen a non-zero amount of people use forkphorus.github.io/forkphorus/ when they should be using forkphorus.github.io/, so we'll just redirect them to the correct location and hope they take note. -->
   <script>
+    // I've seen a non-zero amount of people use forkphorus.github.io/forkphorus/ when they should be using forkphorus.github.io/, so we'll just redirect them to the correct location and hope they take note.
     if (location.origin === 'https://forkphorus.github.io' && location.pathname === '/forkphorus/') {
       location.pathname = '/';
     }
 
-    // Apply dark mode right away to avoid a flash of white
+    // Apply local dark mode preference very early to avoid a flash of white
     (function() {
       try {
-        var isDark = localStorage.getItem('userPrefersDark') === 'true';
-        if (isDark) {
+        if (localStorage.getItem('userPrefersDark') === 'true') {
           document.documentElement.classList.add('dark');
         }
       } catch (e) {
-        console.error(e);
+        console.error('error loading theme choice', e);
       }
     }());
   </script>
-
+  <link rel="stylesheet" href="phosphorus.css">
+  <link rel="stylesheet" href="player.css">
+  <link rel="stylesheet" href="studioview/studioview.css">
+  <link rel="stylesheet" href="index.css">
 </head>
 
 <body>
@@ -114,7 +111,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity: 0.5"><small>Version 806df0d, updated 2019-07-22.</small></p>
+      <p style="opacity: 0.5"><small>Version 236381f, updated 2019-07-24.</small></p>
     </section>
   </div>
 
@@ -411,10 +408,20 @@
     /** Dark Mode **/
     function getLocalDarkMode() {
       try {
-        return localStorage.getItem('userPrefersDark') === 'true';
+        const value = localStorage.getItem('userPrefersDark');
+        if (!value) {
+          // value is undefined or null
+          return getDefaultDarkMode();
+        }
+        // value is the string 'true' or the string 'false'
+        return value === 'true';
       } catch (e) {
+        console.warn('error getting local color choice', e);
         return false;
       }
+    }
+    function getDefaultDarkMode() {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     function setDarkMode(dark) {
       if (dark) {
@@ -428,7 +435,9 @@
       }
       try {
         return localStorage.setItem('userPrefersDark', dark);
-      } catch (e) {}
+      } catch (e) {
+        console.error('error saving color choice', e);
+      }
     }
     function toggleDarkMode(dark) {
       setDarkMode(!document.documentElement.classList.contains('dark'));
