@@ -1919,6 +1919,8 @@ var P;
                 this.canvas.style.outline = 'none';
                 this.root.addEventListener('keydown', (e) => {
                     var c = e.keyCode;
+                    if (c >= 128)
+                        c = P.runtime.getKeyCode(e.key);
                     if (!this.keys[c])
                         this.keys.any++;
                     this.keys[c] = true;
@@ -1932,6 +1934,8 @@ var P;
                 });
                 this.root.addEventListener('keyup', (e) => {
                     var c = e.keyCode;
+                    if (c >= 128)
+                        c = P.runtime.getKeyCode(e.key);
                     if (this.keys[c])
                         this.keys.any--;
                     this.keys[c] = false;
@@ -2728,7 +2732,7 @@ var P;
                         }
                         break;
                     case 'transparency':
-                        this.penAlpha = Math.max(0, Math.min(1, value / 100));
+                        this.penAlpha = Math.max(0, Math.min(1, this.penAlpha - value / 100));
                         break;
                 }
             }
