@@ -5523,16 +5523,33 @@ var P;
             }
             const textElements = svg.querySelectorAll('text');
             const usedFonts = [];
-            for (var i = 0; i < textElements.length; i++) {
-                const el = textElements[i];
-                let font = el.getAttribute('font-family') || '';
-                if (!P.fonts.scratch3[font]) {
-                    console.warn('unknown font', font);
-                    font = 'Sans Serif';
-                    el.setAttribute('font-family', font);
-                }
+            const addFont = (font) => {
                 if (usedFonts.indexOf(font) === -1) {
                     usedFonts.push(font);
+                }
+            };
+            for (var i = 0; i < textElements.length; i++) {
+                const el = textElements[i];
+                let fonts = (el.getAttribute('font-family') || '')
+                    .split(',')
+                    .map((i) => i.trim());
+                let found = false;
+                for (const family of fonts) {
+                    if (P.fonts.scratch3[family]) {
+                        found = true;
+                        addFont(family);
+                        break;
+                    }
+                    else if (family === 'sans-serif') {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    console.warn('unknown fonts', fonts);
+                    const font = 'Sans Serif';
+                    addFont(font);
+                    el.setAttribute('font-family', font);
                 }
             }
             P.fonts.addFontRules(svg, usedFonts);
