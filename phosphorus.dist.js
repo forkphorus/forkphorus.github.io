@@ -4480,8 +4480,8 @@ var P;
                     }
                     else if (e[0] === '<' || e[0] === '>') {
                         var less;
-                        let x;
-                        let y;
+                        var x;
+                        var y;
                         if (typeof e[1] === 'string' && DIGIT.test(e[1]) || typeof e[1] === 'number') {
                             less = e[0] === '<';
                             x = e[1];
@@ -4499,15 +4499,13 @@ var P;
                         return (less ? 'numLess' : 'numGreater') + '(' + nx + ', ' + val(y) + ')';
                     }
                     else if (e[0] === '=') {
-                        let x;
-                        let y;
                         if (typeof e[1] === 'string' && DIGIT.test(e[1]) || typeof e[1] === 'number') {
-                            x = e[1];
-                            y = e[2];
+                            var x = e[1];
+                            var y = e[2];
                         }
                         else if (typeof e[2] === 'string' && DIGIT.test(e[2]) || typeof e[2] === 'number') {
-                            x = e[2];
-                            y = e[1];
+                            var x = e[2];
+                            var y = e[1];
                         }
                         var nx = +x;
                         if (x == null || nx !== nx) {
@@ -6155,9 +6153,6 @@ var P;
                 getListReference(name) {
                     return `${this.getListScope(name)}.lists[${this.sanitizedString(name)}]`;
                 }
-                isStringLiteralPotentialNumber(text) {
-                    return /\d|true|false|Infinity/.test(text);
-                }
                 compileNativeInput(native, desiredType) {
                     const type = native[0];
                     switch (type) {
@@ -6166,7 +6161,7 @@ var P;
                         case 6:
                         case 7:
                         case 8: {
-                            const number = +native[1];
+                            const number = parseFloat(native[1]);
                             if (isNaN(number) || desiredType === 'string') {
                                 return this.sanitizedInput(native[1]);
                             }
@@ -6175,12 +6170,8 @@ var P;
                             }
                         }
                         case 10: {
-                            const value = native[1] + '';
-                            if (/\d/.test(value) && !isNaN(+value)) {
-                                return numberInput(value);
-                            }
-                            const input = this.sanitizedInput(value);
-                            input.potentialNumber = this.isStringLiteralPotentialNumber(value);
+                            const input = this.sanitizedInput(native[1] + '');
+                            input.potentialNumber = /\d/.test(native[1]);
                             return input;
                         }
                         case 12:
@@ -7109,15 +7100,15 @@ var P;
     inputLibrary['operator_equals'] = function (util) {
         const OPERAND1 = util.getInput('OPERAND1', 'any');
         const OPERAND2 = util.getInput('OPERAND2', 'any');
-        if (!OPERAND1.potentialNumber || !OPERAND2.potentialNumber) {
-            return util.booleanInput(`strEqual(${OPERAND1}, ${OPERAND2})`);
-        }
         if (P.config.experimentalOptimizations) {
             if (OPERAND1.type === 'number') {
                 return util.booleanInput(`numEqual(${OPERAND1}, ${OPERAND2})`);
             }
             if (OPERAND2.type === 'number') {
                 return util.booleanInput(`numEqual(${OPERAND2}, ${OPERAND1})`);
+            }
+            if (!OPERAND1.potentialNumber || !OPERAND2.potentialNumber) {
+                return util.booleanInput(`strEqual(${OPERAND1}, ${OPERAND2})`);
             }
         }
         return util.booleanInput(`equal(${OPERAND1}, ${OPERAND2})`);
@@ -7177,7 +7168,7 @@ var P;
             case 'e ^':
                 return util.numberInput(`Math.exp(${NUM})`);
             case '10 ^':
-                return util.numberInput(`Math.pow(10, ${NUM})`);
+                return util.numberInput(`Math.exp(${NUM} * Math.LN10)`);
             default:
                 return util.numberInput('0');
         }
