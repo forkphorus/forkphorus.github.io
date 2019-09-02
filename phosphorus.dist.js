@@ -6166,7 +6166,7 @@ var P;
                         case 6:
                         case 7:
                         case 8: {
-                            const number = parseFloat(native[1]);
+                            const number = +native[1];
                             if (isNaN(number) || desiredType === 'string') {
                                 return this.sanitizedInput(native[1]);
                             }
@@ -6175,6 +6175,13 @@ var P;
                             }
                         }
                         case 10: {
+                            const value = native[1];
+                            if (desiredType !== 'string' && /\d/.test(value)) {
+                                const number = +value;
+                                if (!isNaN(number)) {
+                                    return numberInput(number.toString());
+                                }
+                            }
                             const input = this.sanitizedInput(native[1] + '');
                             input.potentialNumber = this.isStringLiteralPotentialNumber(native[1]);
                             return input;
@@ -6337,9 +6344,11 @@ var P;
                     };
                 }
                 warn(...args) {
+                    args.unshift('[sb3 compiler]');
                     console.warn.apply(console, args);
                 }
                 log(...args) {
+                    args.unshift('[sb3 compiler]');
                     console.log.apply(console, args);
                 }
                 compile() {
@@ -7364,7 +7373,7 @@ var P;
                 var keycode = P.runtime.getKeyCode(value);
             }
             catch (e) {
-                console.warn('makeymakey key generation error', e);
+                util.compiler.warn('makeymakey key generation error', e);
                 return;
             }
             if (keycode === 'any') {
@@ -7384,7 +7393,7 @@ var P;
                 var sequence = P.runtime.scopedEval(SEQUENCE.source);
             }
             catch (e) {
-                console.warn('makeymakey sequence generation error', e);
+                util.compiler.warn('makeymakey sequence generation error', e);
                 return;
             }
             const ARROWS = ['up', 'down', 'left', 'right'];
