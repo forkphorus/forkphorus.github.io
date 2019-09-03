@@ -2666,10 +2666,13 @@ var P;
                             errorCallback(err);
                         });
                     };
-                    attempt(() => {
-                        attempt((err) => {
-                            reject(err);
-                        });
+                    attempt((err) => {
+                        console.warn(`First attempt to download ${this.url} failed, trying again (${err})`);
+                        setTimeout(function () {
+                            attempt((err) => {
+                                reject(err);
+                            });
+                        }, 250);
                     });
                 });
             }
@@ -2684,7 +2687,12 @@ var P;
                 return new Promise((resolve, reject) => {
                     const xhr = this.xhr;
                     xhr.addEventListener('load', () => {
-                        resolve(xhr.response);
+                        if (XHRRequest.acceptableResponseCodes.indexOf(xhr.status) !== -1) {
+                            resolve(xhr.response);
+                        }
+                        else {
+                            reject(new Error(`HTTP Error ${xhr.status} while downloading ${this.url}`));
+                        }
                     });
                     xhr.addEventListener('error', () => {
                         reject(`Error while downloading ${this.url} (onerror) (${xhr.status} ${xhr.statusText})`);
@@ -2694,10 +2702,11 @@ var P;
                     });
                     xhr.open('GET', this.url);
                     xhr.responseType = this.type;
-                    xhr.send();
+                    setTimeout(xhr.send.bind(xhr));
                 });
             }
         }
+        XHRRequest.acceptableResponseCodes = [0, 200];
         IO.XHRRequest = XHRRequest;
         class ArrayBufferRequest extends XHRRequest {
             get type() { return 'arraybuffer'; }
