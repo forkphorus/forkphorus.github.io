@@ -2074,7 +2074,7 @@ var P;
                 return P.microphone.getLoudness();
             }
             initSpeech2Text() {
-                if (!this.speech2text && P.speech2text.supported) {
+                if (!this.speech2text && P.speech2text.isSupported()) {
                     this.speech2text = new P.speech2text.SpeechToTextExtension(this);
                 }
             }
@@ -2593,13 +2593,13 @@ var P;
     (function (fonts_1) {
         const fontFamilyCache = {};
         fonts_1.scratch3 = {
-            'Marker': '/fonts/Knewave-Regular.woff',
-            'Handwriting': '/fonts/Handlee-Regular.woff',
-            'Pixel': '/fonts/Grand9K-Pixel.ttf',
-            'Curly': '/fonts/Griffy-Regular.woff',
-            'Serif': '/fonts/SourceSerifPro-Regular.woff',
-            'Sans Serif': '/fonts/NotoSans-Regular.woff',
-            'Scratch': '/fonts/Scratch.ttf',
+            'Marker': 'fonts/Knewave-Regular.woff',
+            'Handwriting': 'fonts/Handlee-Regular.woff',
+            'Pixel': 'fonts/Grand9K-Pixel.ttf',
+            'Curly': 'fonts/Griffy-Regular.woff',
+            'Serif': 'fonts/SourceSerifPro-Regular.woff',
+            'Sans Serif': 'fonts/NotoSans-Regular.woff',
+            'Scratch': 'fonts/Scratch.ttf',
         };
         function loadLocalFont(fontFamily, src) {
             if (fontFamilyCache[fontFamily]) {
@@ -5819,18 +5819,9 @@ var P;
                 });
             }
             loadFonts() {
-                const fonts = {
-                    'Marker': '/fonts/Knewave-Regular.woff',
-                    'Handwriting': '/fonts/Handlee-Regular.woff',
-                    'Pixel': '/fonts/Grand9K-Pixel.ttf',
-                    'Curly': '/fonts/Griffy-Regular.woff',
-                    'Serif': '/fonts/SourceSerifPro-Regular.woff',
-                    'Sans Serif': '/fonts/NotoSans-Regular.woff',
-                    'Scratch': '/fonts/Scratch.ttf',
-                };
                 const promises = [];
-                for (const family in fonts) {
-                    promises.push(this.promiseTask(P.utils.settled(P.fonts.loadLocalFont(family, fonts[family]))));
+                for (const family in P.fonts.scratch3) {
+                    promises.push(this.promiseTask(P.utils.settled(P.fonts.loadLocalFont(family, P.fonts.scratch3[family]))));
                 }
                 return Promise.all(promises);
             }
@@ -7744,10 +7735,17 @@ var P;
     var speech2text;
     (function (speech2text) {
         var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || window.msSpeechRecognition;
-        speech2text.supported = typeof SpeechRecognition !== 'undefined';
-        if (!speech2text.supported) {
-            console.warn('Speech to text is not supported in this browser. (https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition)');
+        let supported = null;
+        function isSupported() {
+            if (supported === null) {
+                supported = typeof SpeechRecognition !== 'undefined';
+                if (!supported) {
+                    console.warn('Speech to text is not supported in this browser. (https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition)');
+                }
+            }
+            return supported;
         }
+        speech2text.isSupported = isSupported;
         class SpeechToTextExtension {
             constructor(stage) {
                 this.stage = stage;
