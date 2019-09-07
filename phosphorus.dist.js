@@ -1924,6 +1924,9 @@ var P;
                 this.runtime.stopAll();
                 this.runtime.pause();
                 this.stopAllSounds();
+                if (this.speech2text) {
+                    this.speech2text.destroy();
+                }
             }
             focus() {
                 if (this.promptId < this.nextPromptId) {
@@ -2069,6 +2072,11 @@ var P;
             }
             getLoudness() {
                 return P.microphone.getLoudness();
+            }
+            initSpeech2Text() {
+                if (!this.speech2text && P.speech2text.supported) {
+                    this.speech2text = new P.speech2text.SpeechToTextExtension(this);
+                }
             }
             rotatedBounds() {
                 return {
@@ -2782,32 +2790,35 @@ var P;
     var microphone;
     (function (microphone_1) {
         let microphone = null;
-        let state = 0;
+        microphone_1.state = 0;
         const CACHE_TIME = 1000 / 30;
         function connect() {
-            if (state !== 0) {
+            if (microphone_1.state !== 0) {
                 return;
             }
             if (!P.audio.context) {
                 console.warn('Cannot connect to microphone without audio context.');
-                state = 3;
+                microphone_1.state = 3;
                 return;
             }
-            state = 2;
-            navigator.mediaDevices.getUserMedia({ audio: true }).then((mediaStream) => {
+            microphone_1.state = 2;
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then((mediaStream) => {
                 const source = P.audio.context.createMediaStreamSource(mediaStream);
                 const analyzer = P.audio.context.createAnalyser();
                 source.connect(analyzer);
                 microphone = {
                     stream: mediaStream,
-                    source,
                     analyzer,
                     dataArray: new Float32Array(analyzer.fftSize),
                     lastValue: -1,
                     lastCheck: 0,
                 };
-                state = 1;
-                console.log('Connected to microphone');
+                microphone_1.state = 1;
+            })
+                .catch((err) => {
+                console.warn('Cannot connect to microphone: ' + err);
+                microphone_1.state = 3;
             });
         }
         function getLoudness() {
@@ -3403,6 +3414,17 @@ var P;
             }
             now() {
                 return this.baseNow + Date.now() - this.baseTime;
+            }
+            evaluateExpression(sprite, fn) {
+                self = this.stage;
+                runtime = this;
+                S = sprite;
+                try {
+                    return fn();
+                }
+                catch (e) {
+                    return undefined;
+                }
             }
             step() {
                 self = this.stage;
@@ -5812,7 +5834,7 @@ var P;
                 }
                 return Promise.all(promises);
             }
-            compileTargets(targets) {
+            compileTargets(targets, stage) {
                 if (P.config.debug) {
                     console.time('Scratch 3 compile');
                 }
@@ -5848,7 +5870,7 @@ var P;
                         .map((data) => this.loadWatcher(data, stage))
                         .filter((i) => i && i.valid);
                     sprites.forEach((sprite) => sprite.stage = stage);
-                    this.compileTargets(targets);
+                    this.compileTargets(targets, stage);
                     stage.children = sprites;
                     stage.allWatchers = watchers;
                     watchers.forEach((watcher) => watcher.init());
@@ -6028,6 +6050,12 @@ var P;
                     this.compiler = compiler;
                     this.block = block;
                 }
+                get target() {
+                    return this.compiler.target;
+                }
+                get stage() {
+                    return this.compiler.target.stage;
+                }
                 getInput(name, type) {
                     return this.compiler.compileInput(this.block, name, type);
                 }
@@ -6138,7 +6166,6 @@ var P;
                 constructor(compiler, block, startingFunction) {
                     super(compiler, block);
                     this.startingFunction = startingFunction;
-                    this.target = compiler.target;
                 }
             }
             compiler_1.HatUtil = HatUtil;
@@ -6149,7 +6176,6 @@ var P;
             class Compiler {
                 constructor(target) {
                     this.labelCount = 0;
-                    this.usedExtensions = new Set();
                     this.target = target;
                     this.data = target.sb3data;
                     this.blocks = this.data.blocks;
@@ -6158,34 +6184,20 @@ var P;
                     return Object.keys(this.blocks)
                         .filter((i) => this.blocks[i].topLevel);
                 }
-                getOpcodeExtension(opcode) {
-                    const index = opcode.indexOf('_');
-                    if (index !== -1) {
-                        return opcode.substring(0, index);
-                    }
-                    return opcode;
-                }
-                useOpcode(opcode) {
-                    const extension = this.getOpcodeExtension(opcode);
-                    this.usedExtensions.add(extension);
-                }
                 getStatementCompiler(opcode) {
                     if (compiler_1.statementLibrary[opcode]) {
-                        this.useOpcode(opcode);
                         return compiler_1.statementLibrary[opcode];
                     }
                     return null;
                 }
                 getInputCompiler(opcode) {
                     if (compiler_1.inputLibrary[opcode]) {
-                        this.useOpcode(opcode);
                         return compiler_1.inputLibrary[opcode];
                     }
                     return null;
                 }
                 getHatCompiler(opcode) {
                     if (compiler_1.hatLibrary[opcode]) {
-                        this.useOpcode(opcode);
                         return compiler_1.hatLibrary[opcode];
                     }
                     return null;
@@ -7111,6 +7123,20 @@ var P;
             util.writeLn('S.isDraggable = false;');
         }
     };
+    statementLibrary['speech2text_listenAndWait'] = function (util) {
+        util.stage.initSpeech2Text();
+        util.writeLn('if (self.speech2text) {');
+        util.writeLn('  save();');
+        util.writeLn('  self.speech2text.startListen();');
+        util.writeLn('  R.id = self.speech2text.id();');
+        const label = util.addLabel();
+        util.writeLn('  if (self.speech2text.id() === R.id) {');
+        util.forceQueue(label);
+        util.writeLn('  }');
+        util.writeLn('  self.speech2text.endListen();');
+        util.writeLn('  restore();');
+        util.writeLn('}');
+    };
     statementLibrary['videoSensing_videoToggle'] = function (util) {
         const VIDEO_STATE = util.getInput('VIDEO_STATE', 'string');
         util.writeLn(`switch (${VIDEO_STATE}) {`);
@@ -7431,6 +7457,10 @@ var P;
     inputLibrary['sound_volume'] = function (util) {
         return util.numberInput('(S.volume * 100)');
     };
+    inputLibrary['speech2text_getSpeech'] = function (util) {
+        util.stage.initSpeech2Text();
+        return util.stringInput('(self.speech2text ? self.speech2text.speech : "")');
+    };
     inputLibrary['videoSensing_menu_VIDEO_STATE'] = function (util) {
         return util.fieldInput('VIDEO_STATE');
     };
@@ -7571,6 +7601,20 @@ var P;
             }
         },
     };
+    hatLibrary['speech2text_whenIHearHat'] = {
+        handle(util) {
+            util.stage.initSpeech2Text();
+            if (util.stage.speech2text) {
+                const PHRASE = util.getInput('PHRASE', 'string');
+                const phraseFunction = `return ${PHRASE}`;
+                util.stage.speech2text.addHat({
+                    target: util.target,
+                    startingFunction: util.startingFunction,
+                    phraseFunction: P.runtime.createContinuation(phraseFunction),
+                });
+            }
+        },
+    };
     watcherLibrary['data_variable'] = {
         init(watcher) {
             const name = watcher.params.VARIABLE;
@@ -7665,7 +7709,7 @@ var P;
         }
     };
     watcherLibrary['sensing_loudness'] = {
-        evaluate(watcher) { return watcher.target.stage.getLoudness(); },
+        evaluate(watcher) { return watcher.stage.getLoudness(); },
         getLabel() { return 'loudness'; },
     };
     watcherLibrary['sensing_timer'] = {
@@ -7682,5 +7726,103 @@ var P;
         evaluate(watcher) { return watcher.target.volume * 100; },
         getLabel() { return 'volume'; },
     };
+    watcherLibrary['speech2text_getSpeech'] = {
+        init(watcher) {
+            watcher.stage.initSpeech2Text();
+        },
+        evaluate(watcher) {
+            if (watcher.stage.speech2text) {
+                return watcher.stage.speech2text.speech;
+            }
+            return '';
+        },
+        getLabel(watcher) { return 'Speech to text: speech'; },
+    };
 }());
+var P;
+(function (P) {
+    var speech2text;
+    (function (speech2text) {
+        var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || window.msSpeechRecognition;
+        speech2text.supported = typeof SpeechRecognition !== 'undefined';
+        if (!speech2text.supported) {
+            console.warn('Speech to text is not supported in this browser. (https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition)');
+        }
+        class SpeechToTextExtension {
+            constructor(stage) {
+                this.stage = stage;
+                this.speech = '';
+                this.listeners = 0;
+                this.hats = [];
+                this.initRecognition();
+                this.initOverlay();
+            }
+            initRecognition() {
+                this.recognition = new SpeechRecognition();
+                this.recognition.lang = 'en-US';
+                this.recognition.continuous = true;
+                this.recognition.onresult = (event) => this.onresult(event);
+                this.recognition.onerror = (event) => {
+                    if (event.error !== 'aborted') {
+                        console.error('speech2text error', event);
+                    }
+                };
+                this.recognition.start();
+            }
+            initOverlay() {
+                if (this.overlayElement) {
+                    throw new Error('initializing overlay twice');
+                }
+                const container = document.createElement('div');
+                container.className = 'speech2text-container';
+                const indicator = document.createElement('div');
+                indicator.className = 'speech2text-indicator';
+                const animation = document.createElement('div');
+                animation.className = 'speech2text-animation';
+                container.appendChild(animation);
+                container.appendChild(indicator);
+                this.stage.ui.appendChild(container);
+                this.overlayElement = container;
+            }
+            onresult(event) {
+                this.lastResultIndex = event.resultIndex;
+                const lastResult = event.results[event.resultIndex];
+                const message = lastResult[0];
+                const transcript = message.transcript.trim();
+                if (this.listeners !== 0) {
+                    this.speech = transcript;
+                }
+                for (const hat of this.hats) {
+                    const target = hat.target;
+                    const phraseFunction = hat.phraseFunction;
+                    const startingFunction = hat.startingFunction;
+                    const value = this.stage.runtime.evaluateExpression(target, phraseFunction);
+                    if (value === transcript) {
+                        this.stage.runtime.startThread(target, startingFunction);
+                    }
+                }
+            }
+            addHat(hat) {
+                this.hats.push(hat);
+            }
+            startListen() {
+                this.listeners++;
+                this.overlayElement.setAttribute('listening', '');
+            }
+            endListen() {
+                this.listeners--;
+                if (this.listeners === 0) {
+                    this.overlayElement.removeAttribute('listening');
+                }
+            }
+            destroy() {
+                this.recognition.abort();
+            }
+            id() {
+                return this.lastResultIndex;
+            }
+        }
+        speech2text.SpeechToTextExtension = SpeechToTextExtension;
+    })(speech2text = P.speech2text || (P.speech2text = {}));
+})(P || (P = {}));
 //# sourceMappingURL=phosphorus.dist.js.map
