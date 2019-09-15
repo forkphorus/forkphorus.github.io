@@ -132,7 +132,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity: 0.5"><small>Version ebafa37, updated 2019-09-15.</small></p>
+      <p style="opacity: 0.5"><small>Version 01919f5, updated 2019-09-15.</small></p>
     </section>
   </div>
 
@@ -313,14 +313,21 @@
       document.title = initialTitle;
     }
     function setTitleToProjectTitle(id) {
+      var stageId = player.stageId;
       if (cachedTitles[id]) {
         document.title = cachedTitles[id] + ' - forkphorus';
       } else {
         new P.IO.TextRequest('https://scratch.garbomuffin.com/api/forkphorus/?t=title&p=' + id).load()
           .then(function(title) {
-            if (title) {
-              cachedTitles[id] = title;
-              document.title = title + ' - forkphorus';
+            if (player.stageId === stageId) {
+              if (title) {
+                cachedTitles[id] = title;
+                player.projectTitle = title;
+                document.title = title + ' - forkphorus';
+                updateLinks();
+              } else {
+                resetTitle();
+              }
             }
           });
       }

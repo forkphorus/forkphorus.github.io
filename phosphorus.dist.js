@@ -5367,7 +5367,7 @@ var P;
                 if (this.visible) {
                     const value = this.getValue();
                     if (this.valueEl.textContent !== value) {
-                        this.valueEl.textContent = this.getValue();
+                        this.valueEl.textContent = value;
                     }
                 }
             }
