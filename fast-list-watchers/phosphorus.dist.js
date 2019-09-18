@@ -1961,6 +1961,13 @@ var P;
                 this.root.style.height = (360 * zoom | 0) + 'px';
                 this.root.style.fontSize = (zoom * 10) + 'px';
                 this.zoom = zoom;
+                if (!this.runtime.isRunning) {
+                    for (const watcher of this.allWatchers) {
+                        if (watcher instanceof P.sb3.Scratch3ListWatcher) {
+                            watcher.updateList();
+                        }
+                    }
+                }
             }
             clickMouse() {
                 this.mouseSprite = undefined;
@@ -5541,8 +5548,8 @@ var P;
                 this.endpointEl.style.transform = 'translateY(' + (height * this.stage.zoom) + 'px)';
                 const topVisible = this.scrollTop;
                 const bottomVisible = topVisible + this.getContentHeight();
-                let startingIndex = Math.floor(topVisible / this._rowHeight);
-                let endingIndex = Math.ceil(bottomVisible / this._rowHeight);
+                let startingIndex = Math.floor(topVisible / this.getRowHeight());
+                let endingIndex = Math.ceil(bottomVisible / this.getRowHeight());
                 if (this.scrollDirection === 1) {
                     startingIndex -= this.scrollBack;
                     endingIndex += this.scrollAhead;
@@ -5560,9 +5567,7 @@ var P;
                 }
                 const visibleRows = endingIndex - startingIndex;
                 while (this.rows.length <= visibleRows) {
-                    const row = new ListWatcherRow();
-                    this.contentEl.appendChild(row.element);
-                    this.rows.push(row);
+                    this.addRow();
                 }
                 for (var listIndex = startingIndex, rowIndex = 0; listIndex <= endingIndex; listIndex++, rowIndex++) {
                     let row = this.rows[rowIndex];
@@ -5606,13 +5611,17 @@ var P;
             getRowHeight() {
                 if (this._rowHeight === -1) {
                     const PADDING = 2;
-                    const row = new ListWatcherRow();
-                    this.rows.push(row);
-                    this.contentEl.appendChild(row.element);
+                    const row = this.addRow();
                     const height = row.element.offsetHeight;
                     this._rowHeight = height + PADDING;
                 }
                 return this._rowHeight;
+            }
+            addRow() {
+                const row = new ListWatcherRow();
+                this.rows.push(row);
+                this.contentEl.appendChild(row.element);
+                return row;
             }
             updateLayout() {
                 if (!this.containerEl) {
