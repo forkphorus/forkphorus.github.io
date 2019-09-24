@@ -6401,7 +6401,7 @@ var P;
                     const util = new HatUtil(this, hat, startingFn);
                     hatCompiler.handle(util);
                     if (P.config.debug) {
-                        this.log('compiled sb3 script', hat.opcode, script, this.target);
+                        this.log(`[${this.target.name}] compiled sb3 script "${hat.opcode}"`, script, this.target);
                     }
                 }
                 parseScript(script) {
@@ -6869,7 +6869,7 @@ var P;
     statementLibrary['motion_pointindirection'] = function (util) {
         const DIRECTION = util.getInput('DIRECTION', 'number');
         util.visual('visible');
-        util.writeLn(`S.direction = ${DIRECTION};`);
+        util.writeLn(`S.setDirection(${DIRECTION});`);
     };
     statementLibrary['motion_pointtowards'] = function (util) {
         const TOWARDS = util.getInput('TOWARDS', 'any');
