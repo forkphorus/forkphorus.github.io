@@ -1985,6 +1985,13 @@ var P;
                 this.root.style.height = (360 * zoom | 0) + 'px';
                 this.root.style.fontSize = (zoom * 10) + 'px';
                 this.zoom = zoom;
+                if (!this.runtime.isRunning) {
+                    for (const watcher of this.allWatchers) {
+                        if (watcher instanceof P.sb3.Scratch3ListWatcher) {
+                            watcher.updateList();
+                        }
+                    }
+                }
             }
             clickMouse() {
                 this.mouseSprite = undefined;
@@ -5414,11 +5421,58 @@ var P;
             }
         }
         sb3.Scratch3VariableWatcher = Scratch3VariableWatcher;
+        class ListWatcherRow {
+            constructor() {
+                this.value = '';
+                this.index = -1;
+                this.y = 0;
+                this.visible = true;
+                this.element = document.createElement('div');
+                this.indexEl = document.createElement('div');
+                this.valueEl = document.createElement('div');
+                this.element.className = 's3-list-row';
+                this.indexEl.className = 's3-list-index';
+                this.valueEl.className = 's3-list-value';
+                this.element.appendChild(this.indexEl);
+                this.element.appendChild(this.valueEl);
+            }
+            setValue(value) {
+                if (value !== this.value) {
+                    this.value = value;
+                    this.valueEl.textContent = value;
+                }
+            }
+            setIndex(index) {
+                if (index !== this.index) {
+                    this.index = index;
+                    this.indexEl.textContent = (index + 1).toString();
+                }
+            }
+            setY(y) {
+                if (y !== this.y) {
+                    this.y = y;
+                    this.element.style.transform = 'translateY(' + y + 'px)';
+                }
+            }
+            setVisible(visible) {
+                if (this.visible !== visible) {
+                    this.visible = visible;
+                    this.element.style.display = visible ? '' : 'none';
+                }
+            }
+        }
+        sb3.ListWatcherRow = ListWatcherRow;
         class Scratch3ListWatcher extends P.core.Watcher {
             constructor(stage, data) {
                 super(stage, data.spriteName || '');
-                this.firstUpdate = true;
-                this.domRows = [];
+                this.rows = [];
+                this._rowHeight = -1;
+                this.scrollTop = 0;
+                this.lastZoomLevel = 1;
+                this.scrollAhead = 8;
+                this.scrollBack = 3;
+                this.scrollDirection = 1;
+                this._contentHeight = -1;
                 this.id = data.id;
                 this.params = data.params;
                 this.x = data.x;
@@ -5431,38 +5485,56 @@ var P;
                 if (!this.visible) {
                     return;
                 }
-                if (!this.list.modified && !this.firstUpdate) {
+                if (!this.list.modified && this.lastZoomLevel === this.stage.zoom) {
                     return;
                 }
-                this.firstUpdate = false;
+                if (this.lastZoomLevel !== this.stage.zoom) {
+                    this.contentEl.scrollTop *= this.stage.zoom / this.lastZoomLevel;
+                }
                 this.list.modified = false;
-                this.updateContents();
-            }
-            updateContents() {
-                const length = this.list.length;
-                if (this.domRows.length < length) {
-                    while (this.domRows.length < length) {
-                        const row = this.createRow();
-                        this.domRows.push(row);
-                        this.contentEl.appendChild(row.row);
-                    }
-                }
-                else if (this.domRows.length > length) {
-                    while (this.domRows.length > length) {
-                        this.domRows.pop();
-                        this.contentEl.removeChild(this.contentEl.lastChild);
-                    }
-                }
-                for (var i = 0; i < length; i++) {
-                    const { value } = this.domRows[i];
-                    const rowText = '' + this.list[i];
-                    if (rowText !== value.textContent) {
-                        value.textContent = rowText;
-                    }
-                }
+                this.lastZoomLevel = this.stage.zoom;
+                this.updateList();
                 const bottomLabelText = this.getBottomLabel();
                 if (this.bottomLabelEl.textContent !== bottomLabelText) {
                     this.bottomLabelEl.textContent = this.getBottomLabel();
+                }
+            }
+            updateList() {
+                const height = this.list.length * this.getRowHeight();
+                this.endpointEl.style.transform = 'translateY(' + (height * this.stage.zoom) + 'px)';
+                const topVisible = this.scrollTop;
+                const bottomVisible = topVisible + this.getContentHeight();
+                let startingIndex = Math.floor(topVisible / this.getRowHeight());
+                let endingIndex = Math.ceil(bottomVisible / this.getRowHeight());
+                if (this.scrollDirection === 1) {
+                    startingIndex -= this.scrollBack;
+                    endingIndex += this.scrollAhead;
+                }
+                else {
+                    startingIndex -= this.scrollAhead;
+                    endingIndex += this.scrollBack;
+                }
+                if (startingIndex < 0)
+                    startingIndex = 0;
+                if (endingIndex > this.list.length - 1)
+                    endingIndex = this.list.length - 1;
+                if (endingIndex - startingIndex > 50) {
+                    endingIndex = startingIndex + 50;
+                }
+                const visibleRows = endingIndex - startingIndex;
+                while (this.rows.length <= visibleRows) {
+                    this.addRow();
+                }
+                for (var listIndex = startingIndex, rowIndex = 0; listIndex <= endingIndex; listIndex++, rowIndex++) {
+                    let row = this.rows[rowIndex];
+                    row.setIndex(listIndex);
+                    row.setValue(this.list[listIndex]);
+                    row.setY(listIndex * this._rowHeight * this.stage.zoom);
+                    row.setVisible(true);
+                }
+                while (rowIndex < this.rows.length) {
+                    this.rows[rowIndex].setVisible(false);
+                    rowIndex++;
                 }
             }
             init() {
@@ -5476,15 +5548,36 @@ var P;
                 this.list = this.target.lists[listName];
                 this.target.listWatchers[listName] = this;
                 this.updateLayout();
-                if (this.visible) {
-                    this.updateContents();
-                }
             }
             getTopLabel() {
-                return this.params.LIST;
+                if (this.target.isStage) {
+                    return this.params.LIST;
+                }
+                return this.target.name + ': ' + this.params.LIST;
             }
             getBottomLabel() {
                 return 'length ' + this.list.length;
+            }
+            getContentHeight() {
+                if (this._contentHeight === -1) {
+                    this._contentHeight = this.contentEl.offsetHeight;
+                }
+                return this._contentHeight;
+            }
+            getRowHeight() {
+                if (this._rowHeight === -1) {
+                    const PADDING = 2;
+                    const row = this.addRow();
+                    const height = row.element.offsetHeight;
+                    this._rowHeight = height + PADDING;
+                }
+                return this._rowHeight;
+            }
+            addRow() {
+                const row = new ListWatcherRow();
+                this.rows.push(row);
+                this.contentEl.appendChild(row.element);
+                return row;
             }
             updateLayout() {
                 if (!this.containerEl) {
@@ -5496,22 +5589,11 @@ var P;
                 super.setVisible(visible);
                 this.updateLayout();
             }
-            createRow() {
-                const row = document.createElement('div');
-                const index = document.createElement('div');
-                const value = document.createElement('div');
-                row.classList.add('s3-list-row');
-                index.classList.add('s3-list-index');
-                value.classList.add('s3-list-value');
-                index.textContent = (this.domRows.length + 1).toString();
-                row.appendChild(index);
-                row.appendChild(value);
-                return { row, index, value };
-            }
             createLayout() {
                 this.containerEl = document.createElement('div');
                 this.topLabelEl = document.createElement('div');
                 this.bottomLabelEl = document.createElement('div');
+                this.middleContainerEl = document.createElement('div');
                 this.contentEl = document.createElement('div');
                 this.containerEl.style.top = (this.y / 10) + 'em';
                 this.containerEl.style.left = (this.x / 10) + 'em';
@@ -5522,9 +5604,26 @@ var P;
                 this.topLabelEl.classList.add('s3-list-top-label');
                 this.bottomLabelEl.textContent = this.getBottomLabel();
                 this.bottomLabelEl.classList.add('s3-list-bottom-label');
-                this.contentEl.classList.add('s3-list-content');
+                this.middleContainerEl.classList.add('s3-list-content');
+                this.contentEl.classList.add('s3-list-rows');
+                this.contentEl.addEventListener('scroll', (e) => {
+                    const scrollTop = this.contentEl.scrollTop / this.stage.zoom;
+                    const scrollChange = this.scrollTop - scrollTop;
+                    if (scrollChange < 0) {
+                        this.scrollDirection = 1;
+                    }
+                    else if (scrollChange > 0) {
+                        this.scrollDirection = 0;
+                    }
+                    this.scrollTop = scrollTop;
+                    this.updateList();
+                });
+                this.endpointEl = document.createElement('div');
+                this.endpointEl.className = 's3-list-endpoint';
+                this.contentEl.appendChild(this.endpointEl);
+                this.middleContainerEl.appendChild(this.contentEl);
                 this.containerEl.appendChild(this.topLabelEl);
-                this.containerEl.appendChild(this.contentEl);
+                this.containerEl.appendChild(this.middleContainerEl);
                 this.containerEl.appendChild(this.bottomLabelEl);
                 this.stage.ui.appendChild(this.containerEl);
             }
