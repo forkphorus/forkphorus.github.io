@@ -3041,6 +3041,26 @@ var P;
                 list[i] = value;
             }
         };
+        var watchedAppendToList = function (list, value) {
+            appendToList(list, value);
+            if (!list.modified)
+                list.modified = true;
+        };
+        var watchedDeleteLineOfList = function (list, index) {
+            deleteLineOfList(list, index);
+            if (!list.modified)
+                list.modified = true;
+        };
+        var watchedInsertInList = function (list, index, value) {
+            insertInList(list, index, value);
+            if (!list.modified)
+                list.modified = true;
+        };
+        var watchedSetLineOfList = function (list, index, value) {
+            setLineOfList(list, index, value);
+            if (!list.modified)
+                list.modified = true;
+        };
         var mathFunc = function (f, x) {
             switch (f) {
                 case 'abs':
@@ -5543,7 +5563,7 @@ var P;
                 const listId = this.id;
                 const listName = target.listIds[listId];
                 if (!(listName in this.target.lists)) {
-                    this.target.lists[listName] = new Scratch3List();
+                    this.target.lists[listName] = createList();
                 }
                 this.list = this.target.lists[listName];
                 this.target.listWatchers[listName] = this;
@@ -5639,12 +5659,10 @@ var P;
             }
         }
         sb3.Scratch3Procedure = Scratch3Procedure;
-        class Scratch3List extends Array {
-            constructor() {
-                super(...arguments);
-                this.modified = false;
-            }
-            toString() {
+        function createList() {
+            const list = [];
+            list.modified = false;
+            list.toString = function () {
                 var i = this.length;
                 while (i--) {
                     if (('' + this[i]).length !== 1) {
@@ -5652,65 +5670,10 @@ var P;
                     }
                 }
                 return this.join('');
-            }
-            scratchIndex(index) {
-                if (index === 'random' || index === 'any') {
-                    return Math.floor(Math.random() * this.length);
-                }
-                if (index === 'last') {
-                    return this.length - 1;
-                }
-                index = Math.floor(+index);
-                if (index < 1 || index > this.length + 1) {
-                    return -1;
-                }
-                return index - 1;
-            }
-            deleteLine(index) {
-                if (index === 'all') {
-                    this.modified = true;
-                    this.length = 0;
-                    return;
-                }
-                index = this.scratchIndex(index);
-                if (index === this.length - 1) {
-                    this.modified = true;
-                    this.pop();
-                }
-                else if (index !== -1) {
-                    this.modified = true;
-                    this.splice(index, 1);
-                }
-            }
-            push(...items) {
-                this.modified = true;
-                return super.push(...items);
-            }
-            insert(index, value) {
-                if (+index === 1) {
-                    this.modified = true;
-                    this.unshift(value);
-                    return;
-                }
-                index = this.scratchIndex(index);
-                if (index === this.length) {
-                    this.modified = true;
-                    this.push(value);
-                }
-                else if (index !== -1) {
-                    this.modified = true;
-                    this.splice(index, 0, value);
-                }
-            }
-            set(index, value) {
-                index = this.scratchIndex(index);
-                if (index !== -1) {
-                    this.modified = true;
-                    this[index] = value;
-                }
-            }
+            };
+            return list;
         }
-        sb3.Scratch3List = Scratch3List;
+        sb3.createList = createList;
         function patchSVG(svg) {
             if (svg.hasAttribute('viewBox')) {
                 const viewBox = svg.getAttribute('viewBox').split(/ |,/).map((i) => +i);
@@ -5844,7 +5807,11 @@ var P;
                     const list = data.lists[id];
                     const name = list[0];
                     const content = list[1];
-                    target.lists[name] = new Scratch3List().concat(content);
+                    const scratchList = createList();
+                    for (var i = 0; i < content.length; i++) {
+                        scratchList[i] = content[i];
+                    }
+                    target.lists[name] = scratchList;
                     target.listIds[id] = name;
                 }
                 target.name = data.name;
@@ -5912,14 +5879,13 @@ var P;
                         throw new Error('no stage object');
                     }
                     const sprites = targets.filter((i) => i.isSprite);
-                    const watchers = this.projectData.monitors
+                    stage.allWatchers = this.projectData.monitors
                         .map((data) => this.loadWatcher(data, stage))
                         .filter((i) => i && i.valid);
+                    stage.allWatchers.forEach((watcher) => watcher.init());
                     sprites.forEach((sprite) => sprite.stage = stage);
                     this.compileTargets(targets, stage);
                     stage.children = sprites;
-                    stage.allWatchers = watchers;
-                    watchers.forEach((watcher) => watcher.init());
                     return stage;
                 });
             }
@@ -6325,7 +6291,7 @@ var P;
                         return 'S';
                     }
                     else {
-                        this.target.lists[name] = new sb3.Scratch3List();
+                        this.target.lists[name] = sb3.createList();
                         return 'S';
                     }
                 }
@@ -6707,7 +6673,7 @@ var P;
     statementLibrary['data_addtolist'] = function (util) {
         const LIST = util.getListReference('LIST');
         const ITEM = util.getInput('ITEM', 'any');
-        util.writeLn(`${LIST}.push(${ITEM});`);
+        util.writeLn(`watchedAppendToList(${LIST}, ${ITEM});`);
     };
     statementLibrary['data_changevariableby'] = function (util) {
         const VARIABLE = util.getVariableReference('VARIABLE');
@@ -6716,12 +6682,12 @@ var P;
     };
     statementLibrary['data_deletealloflist'] = function (util) {
         const LIST = util.getListReference('LIST');
-        util.writeLn(`${LIST}.deleteLine("all");`);
+        util.writeLn(`${LIST}.length = 0;`);
     };
     statementLibrary['data_deleteoflist'] = function (util) {
         const LIST = util.getListReference('LIST');
         const INDEX = util.getInput('INDEX', 'any');
-        util.writeLn(`${LIST}.deleteLine(${INDEX});`);
+        util.writeLn(`watchedDeleteLineOfList(${LIST}, ${INDEX});`);
     };
     statementLibrary['data_hidelist'] = function (util) {
         const LIST = util.sanitizedString(util.getField('LIST'));
@@ -6735,15 +6701,15 @@ var P;
     };
     statementLibrary['data_insertatlist'] = function (util) {
         const LIST = util.getListReference('LIST');
-        const ITEM = util.getInput('ITEM', 'any');
         const INDEX = util.getInput('INDEX', 'any');
-        util.writeLn(`${LIST}.insert(${INDEX}, ${ITEM});`);
+        const ITEM = util.getInput('ITEM', 'any');
+        util.writeLn(`watchedInsertInList(${LIST}, ${INDEX}, ${ITEM});`);
     };
     statementLibrary['data_replaceitemoflist'] = function (util) {
         const LIST = util.getListReference('LIST');
         const ITEM = util.getInput('ITEM', 'any');
         const INDEX = util.getInput('INDEX', 'any');
-        util.writeLn(`${LIST}.set(${INDEX}, ${ITEM});`);
+        util.writeLn(`watchedSetLineOfList(${LIST}, ${INDEX}, ${ITEM});`);
     };
     statementLibrary['data_setvariableto'] = function (util) {
         const VARIABLE = util.getVariableReference('VARIABLE');
