@@ -126,7 +126,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity:0.5;"><small>Version 8fb6ba9, updated 2019-09-24</small></p>
+      <p style="opacity:0.5;"><small>Version 007fdfa, updated 2019-09-25</small></p>
     </section>
   </div>
 
@@ -190,6 +190,12 @@
       position: querySelector('.url').parentNode,
     });
     var errorHandler = new P.Player.ErrorHandler(player);
+    player.onerror.subscribe(function(err) {
+      err = '' + err;
+      var el = document.createElement('div');
+      el.innerHTML = `Alternatively, <a href="https://scratch.mit.edu/users/GarboMuffin/#comments" target="_blank">post a Scratch comment</a> and include: "<span style="font-family: monospace; user-select: all">${err.replace(/<>/g, '')}</span>"`;
+      errorHandler.errorEl.appendChild(el);
+    });
     playerArea.appendChild(player.root);
 
     var initialId = location.hash.substr(1);
