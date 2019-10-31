@@ -126,7 +126,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity:0.5;"><small>Version 53604d1, updated 2019-10-30 [on branch lod-refactor]</small></p>
+      <p style="opacity:0.5;"><small>Version dd2a861, updated 2019-10-30 [on branch lod-refactor]</small></p>
     </section>
   </div>
 
@@ -357,7 +357,7 @@
     function updatePackageLink() {
       packageOtherWidth.disabled = packageOtherHeight.disabled = !packageOther.checked;
       if (player.projectId) {
-        var url = location.origin + '/app.html?id=' + player.projectId;
+        var url = location.origin + location.pathname + 'app.html?id=' + player.projectId;
         if (packageTurbo.checked) url += '&turbo';
         if (packageFullScreen.checked) {
           // fullscreen is the default
