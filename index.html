@@ -126,7 +126,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity:0.5;"><small>Version d6bab03, updated 2019-10-30</small></p>
+      <p style="opacity:0.5;"><small>Version 25329bc, updated 2019-11-02</small></p>
     </section>
   </div>
 
@@ -191,7 +191,7 @@
     });
     var errorHandler = new P.Player.ErrorHandler(player);
     player.onerror.subscribe(function(err) {
-      if (err instanceof P.Player.ProjectNotSupportedError) {
+      if (err instanceof P.Player.ProjectNotSupportedError || err instanceof P.Player.ProjectDoesNotExistError) {
         return;
       }
       err = '' + err;
