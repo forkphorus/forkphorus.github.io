@@ -3051,7 +3051,7 @@ var P;
         var clone = function (name) {
             const parent = name === '_myself_' ? S : self.getObject(name);
             if (!parent) {
-                throw new Error('No parent!');
+                throw new Error('Cannot find object to clone');
             }
             if (!P.core.isSprite(parent)) {
                 throw new Error('Cannot clone non-sprite object');
@@ -3473,7 +3473,7 @@ var P;
             }
             resetInterval() {
                 if (!this.isRunning) {
-                    throw new Error('cannot restart interval when paused');
+                    throw new Error('Cannot restart interval when paused');
                 }
                 if (this.interval) {
                     clearInterval(this.interval);
@@ -5988,10 +5988,10 @@ var P;
             }
             load() {
                 if (!this.projectData) {
-                    throw new Error('invalid project data');
+                    throw new Error('Project data is missing or invalid');
                 }
                 if (!Array.isArray(this.projectData.targets)) {
-                    throw new Error('no targets');
+                    throw new Error('Invalid project data: missing targets');
                 }
                 const targets = this.projectData.targets;
                 targets.sort((a, b) => a.layerOrder - b.layerOrder);
@@ -6003,7 +6003,7 @@ var P;
                     }
                     const stage = targets.filter((i) => i.isStage)[0];
                     if (!stage) {
-                        throw new Error('no stage object');
+                        throw new Error('Project does not have a Stage');
                     }
                     const sprites = targets.filter((i) => i.isSprite);
                     sprites.forEach((sprite) => sprite.stage = stage);
@@ -6166,7 +6166,7 @@ var P;
         var compiler;
         (function (compiler_1) {
             function assertNever(i) {
-                throw new Error('assertion failed');
+                throw new Error('Compile-time assertNever failed.');
             }
             class CompiledInput {
                 constructor(source, type) {
