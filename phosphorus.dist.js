@@ -291,11 +291,11 @@ var P;
         }
         function playSpan(span, key, duration, connection) {
             if (!audio.context) {
-                return;
+                throw new Error('Cannot playSpawn without an AudioContext');
             }
             const buffer = soundbank[span.name];
             if (!buffer) {
-                return;
+                throw new Error('No soundbank entry named: ' + span.name);
             }
             const source = audio.context.createBufferSource();
             const note = audio.context.createGain();
@@ -332,6 +332,7 @@ var P;
             gain.linearRampToValueAtTime(0, time + duration + 0.02267573696);
             source.start(time);
             source.stop(time + duration + 0.02267573696);
+            return source;
         }
         audio.playSpan = playSpan;
         function connectNode(node) {
@@ -623,6 +624,7 @@ var P;
         class WebGLSpriteRenderer {
             constructor() {
                 this.globalScaleMatrix = P.m3.scaling(1, 1);
+                this.boundFramebuffer = null;
                 this.canvas = createCanvas();
                 const gl = this.canvas.getContext('webgl', {
                     alpha: false,
@@ -712,13 +714,20 @@ var P;
                 }
                 return frameBuffer;
             }
+            bindFramebuffer(buffer) {
+                if (buffer === this.boundFramebuffer) {
+                    return;
+                }
+                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, buffer);
+                this.boundFramebuffer = buffer;
+            }
             reset(scale) {
                 this.canvas.width = scale * P.config.scale * 480;
                 this.canvas.height = scale * P.config.scale * 360;
                 this.resetFramebuffer(scale);
             }
             resetFramebuffer(scale) {
-                this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+                this.gl.viewport(0, 0, 480 * scale, 360 * scale);
                 if (this.globalScaleMatrix[0] !== scale) {
                     this.globalScaleMatrix = P.m3.scaling(scale, scale);
                 }
@@ -736,7 +745,6 @@ var P;
                     costume._glTexture = texture;
                 }
                 this.gl.bindTexture(this.gl.TEXTURE_2D, costume._glTexture);
-                shader.attributeBuffer('a_texcoord', this.quadBuffer);
                 shader.attributeBuffer('a_position', this.quadBuffer);
                 const matrix = P.m3.projection(this.canvas.width, this.canvas.height);
                 P.m3.multiply(matrix, this.globalScaleMatrix);
@@ -785,11 +793,10 @@ var P;
                 }
                 this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
             }
-            drawTexture(texture) {
+            drawTextureOverlay(texture) {
                 const shader = this.renderingShader;
                 this.gl.useProgram(shader.program);
                 this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-                shader.attributeBuffer('a_texcoord', this.quadBuffer);
                 shader.attributeBuffer('a_position', this.quadBuffer);
                 const matrix = P.m3.projection(this.canvas.width, this.canvas.height);
                 P.m3.multiply(matrix, this.globalScaleMatrix);
@@ -819,7 +826,6 @@ var P;
         }
         WebGLSpriteRenderer.vertexShader = `
     attribute vec2 a_position;
-    attribute vec2 a_texcoord;
 
     uniform mat3 u_matrix;
 
@@ -827,7 +833,7 @@ var P;
 
     void main() {
       gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
-      v_texcoord = a_texcoord;
+      v_texcoord = a_position;
     }
     `;
         WebGLSpriteRenderer.fragmentShader = `
@@ -961,9 +967,10 @@ var P;
                 this.reset(1);
             }
             drawFrame() {
+                this.bindFramebuffer(null);
                 this.reset(this.zoom);
                 this.drawChild(this.stage);
-                this.drawTexture(this.penTexture);
+                this.drawTextureOverlay(this.penTexture);
                 for (var i = 0; i < this.stage.children.length; i++) {
                     var child = this.stage.children[i];
                     if (!child.visible) {
@@ -978,7 +985,7 @@ var P;
             onStageFiltersChanged() {
             }
             penLine(color, size, x, y, x2, y2) {
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.penBuffer);
+                this.bindFramebuffer(this.penBuffer);
                 const shader = this.penLineShader;
                 this.gl.useProgram(shader.program);
                 const buffer = this.gl.createBuffer();
@@ -994,10 +1001,9 @@ var P;
                 const parts = color.toParts();
                 shader.uniform4f('u_color', parts[0], parts[1], parts[2], parts[3]);
                 this.gl.drawArrays(this.gl.LINES, 0, 2);
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
             }
             penDot(color, size, x, y) {
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.penBuffer);
+                this.bindFramebuffer(this.penBuffer);
                 const shader = this.penDotShader;
                 this.gl.useProgram(shader.program);
                 shader.attributeBuffer('a_position', this.quadBuffer);
@@ -1008,19 +1014,15 @@ var P;
                 const parts = color.toParts();
                 shader.uniform4f('u_color', parts[0], parts[1], parts[2], parts[3]);
                 this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
             }
             penStamp(sprite) {
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.penBuffer);
-                this.gl.viewport(0, 0, 480, 360);
+                this.bindFramebuffer(this.penBuffer);
                 this.drawChild(sprite);
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
             }
             penClear() {
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.penBuffer);
+                this.bindFramebuffer(this.penBuffer);
                 this.gl.clearColor(255, 255, 255, 0);
                 this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
             }
             resize(scale) {
                 this.zoom = scale;
@@ -1031,12 +1033,11 @@ var P;
                 }
                 const texture = this.createTexture();
                 const framebuffer = this.createFramebuffer();
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
+                this.bindFramebuffer(framebuffer);
                 this.resetFramebuffer(1);
                 this._drawChild(sprite, this.shaderOnlyShapeFilters);
                 const result = new Uint8Array(4);
                 this.gl.readPixels(240 + x | 0, 180 + y | 0, 1, 1, this.gl.RGBA, this.gl.UNSIGNED_BYTE, result);
-                this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
                 this.gl.deleteTexture(texture);
                 this.gl.deleteFramebuffer(framebuffer);
                 return result[3] !== 0;
@@ -3266,10 +3267,15 @@ var P;
                     if (span.top >= key || span.top === 128)
                         break;
                 }
-                P.audio.playSpan(span, key, duration, S.getAudioNode());
+                return playSpan(span, key, duration);
             };
             var playSpan = function (span, key, duration) {
-                P.audio.playSpan(span, key, duration, S.getAudioNode());
+                const node = P.audio.playSpan(span, key, duration, S.getAudioNode());
+                return {
+                    stopped: false,
+                    node,
+                    base: BASE,
+                };
             };
             var applySoundEffects = function (node) {
                 node.playbackRate.value = Math.pow(2, (S.soundFilters.pitch / 10 / 12));
@@ -4694,15 +4700,15 @@ var P;
                                 case 'tan':
                                     return 'Math.tan(' + num(e[2]) + ' * Math.PI / 180)';
                                 case 'asin':
-                                    return 'Math.asin(' + num(e[2]) + ') * 180 / Math.PI';
+                                    return '(Math.asin(' + num(e[2]) + ') * 180 / Math.PI)';
                                 case 'acos':
-                                    return 'Math.acos(' + num(e[2]) + ') * 180 / Math.PI';
+                                    return '(Math.acos(' + num(e[2]) + ') * 180 / Math.PI)';
                                 case 'atan':
-                                    return 'Math.atan(' + num(e[2]) + ') * 180 / Math.PI';
+                                    return '(Math.atan(' + num(e[2]) + ') * 180 / Math.PI)';
                                 case 'ln':
                                     return 'Math.log(' + num(e[2]) + ')';
                                 case 'log':
-                                    return 'Math.log(' + num(e[2]) + ') / Math.LN10';
+                                    return '(Math.log(' + num(e[2]) + ') / Math.LN10)';
                                 case 'e ^':
                                     return 'Math.exp(' + num(e[2]) + ')';
                                 case '10 ^':
@@ -4831,10 +4837,13 @@ var P;
                 };
                 var beatTail = function () {
                     var id = label();
-                    source += 'if (runtime.now() - R.start < R.duration * 1000 || first) {\n';
+                    source += 'if (!R.sound) R.sound = { stopped: false };';
+                    source += 'S.activeSounds.add(R.sound);\n';
+                    source += 'if ((runtime.now() - R.start < R.duration * 1000 || first) && !R.sound.stopped) {\n';
                     source += '  var first;\n';
                     forceQueue(id);
                     source += '}\n';
+                    source += 'S.activeSounds.delete(R.sound);';
                     source += 'restore();\n';
                 };
                 var wait = function (dur) {
@@ -5058,7 +5067,7 @@ var P;
                     else if (block[0] === 'playDrum') {
                         beatHead(block[2]);
                         if (P.audio.context) {
-                            source += 'playSpan(DRUMS[Math.round(' + num(block[1]) + ') - 1] || DRUMS[2], 60, 10);\n';
+                            source += 'R.sound = playSpan(DRUMS[Math.round(' + num(block[1]) + ') - 1] || DRUMS[2], 60, 10);\n';
                         }
                         beatTail();
                     }
@@ -5069,7 +5078,7 @@ var P;
                     else if (block[0] === 'noteOn:duration:elapsed:from:') {
                         beatHead(block[2]);
                         if (P.audio.context) {
-                            source += 'playNote(' + num(block[1]) + ', R.duration);\n';
+                            source += 'R.sound = playNote(' + num(block[1]) + ', R.duration);\n';
                         }
                         beatTail();
                     }
