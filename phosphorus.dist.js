@@ -5943,6 +5943,9 @@ var P;
                     const list = data.lists[id];
                     const name = list[0];
                     const content = list[1];
+                    if (target.lists[name]) {
+                        continue;
+                    }
                     const scratchList = createList();
                     for (var i = 0; i < content.length; i++) {
                         scratchList[i] = content[i];
