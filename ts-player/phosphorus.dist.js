@@ -3232,6 +3232,10 @@ var P;
                     return 2;
                 return null;
             }
+            static isCloudVariable(variableName) {
+                return variableName.startsWith('☁');
+            }
+            ;
             assertStage() {
                 if (!this.stage) {
                     throw new Error('The player does not currently contain a stage to operate on.');
@@ -3709,7 +3713,8 @@ var P;
                 });
             }
             getProjectTitle(id) {
-                return new P.IO.TextRequest(Player.TITLE_API.replace('$id', id)).load();
+                return new P.IO.JSONRequest(Player.PROJECT_API.replace('$id', id), { rejectOnError: false }).load()
+                    .then((data) => data.title || '');
             }
             getCloudVariables(id) {
                 return new P.IO.JSONRequest(Player.CLOUD_API.replace('$id', id)).load()
@@ -3717,25 +3722,43 @@ var P;
                     const variables = Object.create(null);
                     for (const entry of data.reverse()) {
                         const { verb, name, value } = entry;
+                        if (!Player.isCloudVariable(name)) {
+                            console.warn('cloud variable logs affecting non-cloud variables; aborting');
+                            return {};
+                        }
                         switch (verb) {
+                            case 'create_var':
                             case 'set_var':
                                 variables[name] = value;
                                 break;
+                            case 'del_var':
+                                delete variables[name];
+                                break;
+                            case 'rename_var':
+                                variables[value] = variables[name];
+                                delete variables[name];
+                                break;
+                            default:
+                                console.warn('unknown cloud variable log verb:', verb);
                         }
                     }
                     return variables;
                 });
             }
             addCloudVariables(stage, id) {
-                const isCloudVariable = (variable) => variable.startsWith('☁');
                 const variables = Object.keys(stage.vars);
-                const hasCloudVariables = variables.some(isCloudVariable);
+                const hasCloudVariables = variables.some(Player.isCloudVariable);
                 if (!hasCloudVariables) {
                     return;
                 }
                 this.getCloudVariables(id).then((variables) => {
                     for (const name of Object.keys(variables)) {
-                        stage.vars[name] = variables[name];
+                        if (name in stage.vars) {
+                            stage.vars[name] = variables[name];
+                        }
+                        else {
+                            console.warn('not applying unknown cloud variable:', name);
+                        }
                     }
                 });
             }
@@ -3746,7 +3769,7 @@ var P;
         Player.UNKNOWN_ID = '(no id)';
         Player.UNKNOWN_LINK = '(no link)';
         Player.UNKNOWN_TITLE = '(no title)';
-        Player.TITLE_API = 'https://scratch.garbomuffin.com/api/forkphorus/?t=title&p=$id';
+        Player.PROJECT_API = 'https://scratch.garbomuffin.com/proxy/projects/$id';
         Player.CLOUD_API = 'https://scratch.garbomuffin.com/cloud-proxy/logs/$id?limit=100';
         player_1.Player = Player;
         class ErrorHandler {
