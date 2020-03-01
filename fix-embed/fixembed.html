@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>forkphorus embed</title>
+    <meta name="robots" content="noindex">
+    <style>
+      iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      (function() {
+        'use strict';
+
+        var scriptSource = unescape(location.hash);
+        var containerElement = document.createElement('div');
+        containerElement.innerHTML = scriptSource;
+        var parsedScript = containerElement.querySelector('script');
+
+        if (!parsedScript) {
+          alert('invalid script tag');
+          return;
+        }
+
+        var src = parsedScript.src;
+        var hasUI = true;
+        var width = 480;
+        var height = 360;
+
+        src.split('?')[1].split('&').forEach(function(p) {
+          var parts = p.split('=');
+          switch (parts[0]) {
+            case 'ui':
+              hasUI = parts[1] !== 'false';
+              break;
+            case 'w':
+              width = +parts[1];
+              break;
+            case 'h':
+              height = +parts[1];
+              break;
+          }
+        });
+
+        var iframe = document.createElement('iframe');
+        iframe.setAttribute('allowfullscreen', true);
+        iframe.setAttribute('allowtransparency', true);
+        iframe.src = src.replace('embed.js', 'embed.html');
+        iframe.style.border = '0';
+
+        if (hasUI) {
+          iframe.width = width + 2;
+          iframe.height = height + 33;
+        } else {
+          iframe.width = width;
+          iframe.height = height;
+        }
+
+        document.body.appendChild(iframe);
+
+      }());
+    </script>
+  </body>
+</html>
