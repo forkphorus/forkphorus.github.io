@@ -76,6 +76,7 @@
             <input id="embed-other-width" type="number" value="960" disabled min="1">
             <span class="package-other-divider" data-i18n="index.package.divider">&times;</span>
             <input id="embed-other-height" type="number" value="720" disabled min="1">
+            <a id="embed-alternative" target="_blank">Code doesn't work?</a>
           </span>
         </p>
       </section>
@@ -126,7 +127,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity:0.5;"><small>Version 7f6e043, updated 2020-02-29 [on branch fix-embed]</small></p>
+      <p style="opacity:0.5;"><small>Version 7526067, updated 2020-03-02 [on branch fix-embed]</small></p>
     </section>
   </div>
 
@@ -421,6 +422,7 @@
     var embedOther = querySelector('#embed-other');
     var embedOtherWidth = querySelector('#embed-other-width');
     var embedOtherHeight = querySelector('#embed-other-height');
+    var embedAlternative = querySelector('#embed-alternative');
 
     function updateEmbedCode(e) {
       // Hide UI replaces other options.
@@ -451,6 +453,8 @@
       } else {
         embedCode.value = '';
       }
+
+      embedAlternative.href = 'alternativeembed.html#' + embedCode.value;
 
       if (e) {
         selectEmbedCode();
