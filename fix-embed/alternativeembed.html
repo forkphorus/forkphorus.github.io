@@ -12,7 +12,9 @@
 
     <p>This is a temporary hack to fix issues with certain sites.</p>
 
-    <iframe src="http://localhost:8080/embed.html?id=357143074&auto-start=true&light-content=false&w=480&h=360" allowfullcreen="true" allowtransparency="true" style="border: none;" width="482" height="393"></iframe>
+    <p>Demo:</p>
+
+    <div id="demo"></div>
 
     <script>
       (function() {
@@ -48,17 +50,21 @@
           }
         });
 
-        var frame = '<iframe src="' + src.replace('embed.js', 'embed.html') + '" allowfullcreen="true" allowtransparency="true" style="border: none;"';
+        var iframe = document.createElement('iframe');
+        iframe.setAttribute('allowfullscreen', true);
+        iframe.setAttribute('allowtransparency', true);
+        iframe.src = src.replace('embed.js', 'embed.html');
+        iframe.style.border = '0';
 
         if (hasUI) {
           width = width + 2;
           height = height + 33;
         }
-        frame += ' width="' + width + '"';
-        frame += ' height="' + height + '"';
-        frame += '></iframe>';
+        iframe.width = width;
+        iframe.height = height;
 
-        document.getElementById('embed').value = frame;
+        document.getElementById('embed').value = iframe.outerHTML;
+        document.getElementById('demo').appendChild(iframe);
 
       }());
     </script>
