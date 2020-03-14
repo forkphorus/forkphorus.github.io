@@ -1738,7 +1738,7 @@ var P;
         }
         VectorCostume.MAX_ZOOM = 6;
         core.VectorCostume = VectorCostume;
-        if (/iPhone/.test(navigator.userAgent) || /iPad/.test(navigator.userAgent)) {
+        if (/iPhone/.test(navigator.userAgent) || /iPad/.test(navigator.userAgent) || /iPod/.test(navigator.userAgent) || window.safari) {
             VectorCostume.MAX_ZOOM = 1;
         }
         class Sound {
@@ -2698,6 +2698,9 @@ var P;
                 this.throwWithoutStage();
                 return this.stage;
             }
+            hasProjectMeta() {
+                return !!this.projectMeta;
+            }
             getProjectMeta() {
                 if (!this.projectMeta) {
                     throw new Error('no project meta');
@@ -2765,10 +2768,10 @@ var P;
                 }
             }
             updateFullscreen() {
-                this.throwWithoutStage();
                 if (!this.fullscreenEnabled) {
                     return;
                 }
+                this.throwWithoutStage();
                 const controlsHeight = this.controlsContainer ? this.controlsContainer.offsetHeight : 0;
                 window.scrollTo(0, 0);
                 let w = window.innerWidth - this.options.fullscreenPadding * 2;
