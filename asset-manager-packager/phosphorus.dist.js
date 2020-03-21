@@ -2450,6 +2450,11 @@ var P;
                 this.onresume = new Slot();
                 this.onpause = new Slot();
                 this.onoptionschange = new Slot();
+                this.MAGIC = {
+                    LARGE_Z_INDEX: '9999999999',
+                    CLOUD_HISTORY_API: 'https://scratch.garbomuffin.com/cloud-proxy/logs/$id?limit=100',
+                    PROJECT_API: 'https://projects.scratch.mit.edu/$id',
+                };
                 this.projectMeta = null;
                 this.currentLoader = null;
                 this.fullscreenEnabled = false;
@@ -2616,6 +2621,7 @@ var P;
                 }
                 this.stage.username = this.options.username;
                 this.stage.runtime.isTurbo = this.options.turbo;
+                this.stage.renderer.imageSmoothingEnabled = this.options.imageSmoothing;
             }
             throwWithoutStage() {
                 if (!this.stage) {
@@ -2675,12 +2681,15 @@ var P;
                     this.currentLoader.cancel();
                     this.currentLoader = null;
                 }
-                if (this.stage) {
-                    this.stage.destroy();
-                    this.stage = null;
+                if (this.clickToPlayContainer) {
+                    this.removeClickToPlayContainer();
                 }
                 if (this.fullscreenEnabled) {
                     this.exitFullscreen();
+                }
+                if (this.stage) {
+                    this.stage.destroy();
+                    this.stage = null;
                 }
                 this.projectMeta = null;
                 while (this.playerContainer.firstChild) {
@@ -2726,7 +2735,7 @@ var P;
                     }
                 }
                 document.body.classList.add('player-body-fullscreen');
-                this.root.style.zIndex = '9999999999';
+                this.root.style.zIndex = this.MAGIC.LARGE_Z_INDEX;
                 this.enableAttribute('fullscreen');
                 this.fullscreenEnabled = true;
                 if (this.hasStage()) {
@@ -2799,7 +2808,7 @@ var P;
             }
             getCloudVariables(id) {
                 return __awaiter(this, void 0, void 0, function* () {
-                    const data = yield new P.io.Request('https://scratch.garbomuffin.com/cloud-proxy/logs/$id?limit=100'.replace('$id', id)).load('json');
+                    const data = yield new P.io.Request(this.MAGIC.CLOUD_HISTORY_API.replace('$id', id)).load('json');
                     const variables = Object.create(null);
                     for (const entry of data.reverse()) {
                         const { verb, name, value } = entry;
@@ -2866,7 +2875,7 @@ var P;
             }
             showClickToPlayContainer() {
                 if (this.clickToPlayContainer) {
-                    throw new Error('cannot show click-to-play interface: already shwon');
+                    throw new Error('cannot show click-to-play interface: already shown');
                 }
                 this.clickToPlayContainer = document.createElement('div');
                 this.clickToPlayContainer.className = 'player-click-to-play-container';
@@ -2911,7 +2920,7 @@ var P;
                 return true;
             }
             fetchProject(id) {
-                const request = new P.io.Request('https://projects.scratch.mit.edu/$id'.replace('$id', id));
+                const request = new P.io.Request(this.MAGIC.PROJECT_API.replace('$id', id));
                 return request
                     .ignoreErrors()
                     .load('blob')
@@ -3038,6 +3047,7 @@ var P;
             fullscreenMode: 'full',
             fullscreenPadding: 8,
             fullscreenMaxWidth: Infinity,
+            imageSmoothing: false,
         };
         player_1.Player = Player;
         class ErrorHandler {
@@ -8383,6 +8393,7 @@ var P;
             class SpriteRenderer2D {
                 constructor() {
                     this.noEffects = false;
+                    this.imageSmoothingEnabled = false;
                     const { canvas, ctx } = create2dCanvas();
                     this.canvas = canvas;
                     this.ctx = ctx;
@@ -8434,7 +8445,6 @@ var P;
                         objectScale *= c.scale;
                     }
                     const lod = costume.get(objectScale * c.stage.zoom);
-                    ctx.imageSmoothingEnabled = false;
                     const x = -costume.rotationCenterX * objectScale;
                     const y = -costume.rotationCenterY * objectScale;
                     const w = costume.width * objectScale;
@@ -8443,7 +8453,7 @@ var P;
                         ctx.restore();
                         return;
                     }
-                    ctx.imageSmoothingEnabled = false;
+                    ctx.imageSmoothingEnabled = this.imageSmoothingEnabled;
                     if (!this.noEffects) {
                         ctx.globalAlpha = Math.max(0, Math.min(1, 1 - c.filters.ghost / 100));
                         if (P.config.accurateFilters) {
