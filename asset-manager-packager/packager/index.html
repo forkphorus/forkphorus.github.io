@@ -19,7 +19,7 @@
     }
 
     .label {
-      width: 100px;
+      width: 120px;
       text-align: center;
       font-weight: bold;
     }
@@ -30,6 +30,11 @@
 
     input[type=text], input[type=number], input[type=checkbox], select {
       width: 100%;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100px;
     }
 
     .progress-label {
@@ -74,13 +79,20 @@
     const fileLoader = new Packer.FileLoader();
 
     fileLoader.files = [
-      { type: 'style', src: 'phosphorus.css' },
+      { type: 'style', src: 'phosphorus.css', inlineSources: [
+        'icons.svg',
+        'icons/click-to-play.svg',
+        'fonts/DonegalOne-Regular.woff',
+        'fonts/GloriaHallelujah.woff',
+        'fonts/MysteryQuest-Regular.woff',
+        'fonts/PermanentMarker-Regular.woff',
+      ]},
       { type: 'script', src: 'lib/canvg.min.js', },
       { type: 'script', src: 'lib/fontfaceobserver.standalone.js', },
       { type: 'script', src: 'lib/jszip.min.js', },
       { type: 'script', src: 'lib/rgbcolor.js', },
       { type: 'script', src: 'lib/stackblur.min.js', },
-      { type: 'script', src: 'phosphorus.dist.js', },
+      { type: 'script', src: 'phosphorus.dist.js', inlineSources: ['icons.svg'] },
     ];
 
     fileLoader.assets = [
@@ -158,7 +170,6 @@
       { src: 'fonts/Griffy-Regular.woff', },
       { src: 'fonts/SourceSerifPro-Regular.woff', },
       { src: 'fonts/NotoSans-Regular.woff', },
-      { src: 'fonts/Scratch.ttf', },
     ];
   </script>
 
@@ -244,6 +255,21 @@
         this.setValue(getValue());
 
         this.inputContainer.appendChild(input);
+        return this;
+      }
+
+      // Add a multiline textarea
+      textarea(options = {}) {
+        const textarea = document.createElement('textarea');
+
+        if (options.value) textarea.value = options.value;
+
+        textarea.onchange = () => {
+          this.setValue(textarea.value);
+        };
+        this.setValue(textarea.value);
+
+        this.inputContainer.appendChild(textarea);
         return this;
       }
 
@@ -366,6 +392,12 @@
       .description('Enables Turbo Mode')
       .add();
 
+    const showControls = new Option()
+      .label('Show Controls')
+      .input({ type: 'checkbox' })
+      .description('Show or hide the control widget')
+      .add();
+
     const username = new Option()
       .label('Username')
       .input()
@@ -387,6 +419,35 @@
       .input({ type: 'number', value: 30 })
       .description('Framerate in frames per second.')
       .add();
+    
+    const phonegap = {
+      enabled: new Option()
+        .label('Enable Phonegap')
+        .input({ type: 'checkbox' })
+        .description('Enables special behavior and options related to PhoneGap. This will make the output of this packager a ZIP archive instead of HTML.')
+        .add(),
+      xml: new Option()
+        .label('PhoneGap config.xml')
+        .textarea({ value: `<?xml version="1.0" encoding="UTF-8" ?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="io.github.forkphorus.example" version="1.0.0" >
+
+  <name>Forkphorus Packaged App</name>
+
+  <description>Some description.</description>
+
+  <author href="https://scratch.mit.edu/users/you" email="you@example.com">You</author>
+  
+  <icon src="icon.png" />
+
+</widget>`})
+        .description('This is the config file for PhoneGap apps. It allows you to control name, ID, description, author, version, etc. This is XML, so formatting like quotes, angled brackets, and case are important.')
+        .add(),
+      icon: new Option()
+        .label('Phonegap Icon (.png)')
+        .file({ accept: '.png' })
+        .description('The icon that PhoneGap will use. If you do not select an icon, a default will be used instead.')
+        .add(),
+    };
 
   </script>
 
@@ -493,6 +554,10 @@
         packager.playerOptions.username = username.value;
         packager.playerOptions.fps = fps.value;
 
+        if (showControls.value) {
+          packager.controlsOptions = {};
+        }
+
         setAction('Loading project data');
 
         if (projectSource.value === 'id') {
@@ -501,8 +566,19 @@
           await packager.loadProjectFromFile(projectFile.value);
         }
 
-        const result = await packager.run();
-        addDownloadLink(result, 'project.html');
+        let filename = 'project';
+        let filetype = 'html';
+        let result = await packager.run();
+
+        if (phonegap.enabled.value) {
+          filetype = 'zip';
+          const pg = new Packer.PhoneGap();
+          pg.configXML = phonegap.xml.value;
+          pg.icon = phonegap.icon.value;
+          result = await pg.package(result);
+        }
+
+        addDownloadLink(result, `${filename}.${filetype}`);
       } catch (e) {
         console.error(e);
         alert('Error: ' + e);

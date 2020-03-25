@@ -16,6 +16,7 @@ window.Packer = (function() {
    * @property {string} src Where to fetch the file from, relative to the forkphorus root
    * @property {boolean} [loaded] Whether the file has been loaded.
    * @property {string} [content] Raw text of the file
+   * @property {string[]} [inlineSources] File paths to include with data: URIs
    */
 
   /**
@@ -44,6 +45,28 @@ window.Packer = (function() {
   }
 
   /**
+   * Create an archive from an SBDL files result
+   * @param {*} files 
+   * @param {Progress} progress
+   */
+  function createArchive(files, progress) {
+    progress.start();
+    const zip = new JSZip();
+    for (const file of files) {
+      const path = file.path;
+      const data = file.data;
+      zip.file(path, data);
+    }
+    return zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+    }, (metadata) => {
+      progress.setProgress(metadata.percent);
+      progress.setCaption(metadata.currentFile);
+    });
+  }
+
+  /**
    * Helper class for users to implement progress monitoring.
    */
   class Progress {
@@ -61,31 +84,50 @@ window.Packer = (function() {
       this.files = [];
       /** @type {PackagerAsset[]} */
       this.assets = [];
+      /** @type {string} */
+      this.pathPrefix = '../';
+    }
+
+    /**
+     * @param {string} source
+     */
+    async _loadInlineSource(source) {
+      const response = await fetch(this.pathPrefix + source);
+      const blob = await response.blob();
+      const url = await readAsURL(blob);
+      return url;
     }
 
     /**
      * @param {PackagerFile} file
      */
-    _loadFile(file) {
-      return fetch('../' + file.src)
-        .then((r) => r.text())
-        .then((t) => {
-          file.loaded = true;
-          file.content = `/* F: ${file.src} */` + t;
-        });
+    async _loadFile(file) {
+      const response = await fetch(this.pathPrefix + file.src);
+      let body = await response.text();
+
+      if (file.inlineSources) {
+        for (const source of file.inlineSources) {
+          const sourceData = await this._loadInlineSource(source);
+          // string.replace only does the first occurence, but a source may appear multiple times in the file
+          while (body.includes(source)) {
+            body = body.replace(source, sourceData);
+          }
+        }
+      }
+
+      file.loaded = true;
+      file.content = body;
     }
 
     /**
      * @param {PackagerAsset} asset
      */
-    _loadAsset(asset) {
-      return fetch('../' + asset.src)
-        .then((r) => r.blob())
-        .then((b) => readAsURL(b))
-        .then((url) => {
-          asset.loaded = true;
-          asset.data = url;
-        });
+    async _loadAsset(asset) {
+      const response = await fetch(this.pathPrefix + asset.src);
+      const blob = await response.blob();
+      const data = await readAsURL(blob);
+      asset.loaded = true;
+      asset.data = data;
     }
 
     /**
@@ -118,6 +160,25 @@ window.Packer = (function() {
     }
   }
 
+  class PhoneGap {
+    constructor() {
+      this.configXML = '';
+      this.icon = null;
+      this.progress = new Progress();
+    }
+
+    /**
+     * @param {string} html HTML output from a Packager
+     */
+    async package(html) {
+      return createArchive([
+        { path: 'index.html', data: html, },
+        { path: 'config.xml', data: this.configXML, },
+        { path: 'icon.png', data: this.icon, },
+      ], this.progress);
+    }
+  }
+
   class Packager {
     constructor({ fileLoader }) {
       this.fileLoader = fileLoader;
@@ -134,27 +195,6 @@ window.Packer = (function() {
       this.projectData = null;
 
       this.archiveProgress = new Progress();
-    }
-
-    /**
-     * Create an archive from an SBDL files result
-     * @param {*} files 
-     */
-    _createArchive(files) {
-      this.archiveProgress.start();
-      const zip = new JSZip();
-      for (const file of files) {
-        const path = file.path;
-        const data = file.data;
-        zip.file(path, data);
-      }
-      return zip.generateAsync({
-        type: 'blob',
-        compression: 'DEFLATE',
-      }, (metadata) => {
-        this.archiveProgress.setProgress(metadata.percent);
-        this.archiveProgress.setCaption(metadata.currentFile);
-      });
     }
 
     /**
@@ -183,7 +223,7 @@ window.Packer = (function() {
       if (result.type !== 'zip') {
         throw new Error('unknown result type: ' + result.type);
       }
-      const archive = await this._createArchive(result.files);
+      const archive = await createArchive(result.files, this.archiveProgress);
       const url = await readAsURL(archive);
       return {
         url: url,
@@ -405,6 +445,7 @@ ${scripts}
 
   return {
     FileLoader,
+    PhoneGap,
     Packager,
   };
 }());
