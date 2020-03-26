@@ -10,12 +10,37 @@
       margin: auto;
       font-family: Helvetica, Arial, sans-serif;
       line-height: 1.3;
-      margin-bottom: 20px;
+      margin-bottom: 50px;
     }
+
+    #loading-message {
+      text-align: center;
+      font-style: italic;
+    }
+    #options {
+      position: relative;
+    }
+    #options[data-usable=false] {
+      pointer-events: none;
+      opacity: 0.75;
+    }
+    #options[data-usable=true] #click-disabler {
+      display: none;
+    }
+    #options[data-usable=false] #click-disabler {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      cursor: not-allowed;
+      pointer-events: auto;
+    }
+
     table {
       width: 100%;
       margin-bottom: 10px;
-      /* border-bottom: 1px solid #aaa; */
+      border-bottom: 1px solid rgb(200, 200, 200);
     }
 
     .label {
@@ -29,10 +54,12 @@
     }
 
     input[type=text], input[type=number], input[type=checkbox], select {
+      box-sizing: border-box;
       width: 100%;
     }
 
     textarea {
+      box-sizing: border-box;
       width: 100%;
       height: 100px;
     }
@@ -40,6 +67,29 @@
     .progress-label {
       padding-left: 5px;
       font-style: italic;
+    }
+
+    summary {
+      cursor: pointer;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #111;
+        color: #ddd;
+      }
+      a {
+        color: #4af;
+      }
+      a:visited {
+        color: #b381ef;
+      }
+      a:active {
+        color: #58f;
+      }
+      table.option {
+        border-color: rgb(53, 53, 53);
+      }
     }
   </style>
   <title>HTML Packager - forkphorus</title>
@@ -53,29 +103,34 @@
   <ul>
     <li>Guide: <a href="guide.html">Packaging to .EXE</a> (Windows/Mac OS/Linux)</li>
     <li>Guide: <a href="android.html">Packaging to .APK</a> (Android, maybe iOS)</li>
-    <li>Get Help: Create an issue on <a href="https://github.com/forkphorus/forkphorus/issues">GitHub</a></li>
+    <li>Additional Help: Create an issue on <a href="https://github.com/forkphorus/forkphorus/issues">GitHub</a></li>
   </ul>
 
-  <div id="opts">
-    <!-- JS injects options into here -->
+  <div id="loading-message">Loading...</div>
+
+  <div id="interface-container" hidden>
+    <div id="options" data-usable="true">
+      <div id="click-disabler" title="please wait for the packager to finish..."></div>
+      <!-- JS injects options into here -->
+    </div>
+  
+    <section>
+      <button id="package-html">Package Project</button>
+    </section>
+  
+    <section id="loading-section">
+      <!-- JS injects progress bars here -->
+    </section>
   </div>
 
-  <section>
-    <button id="package-html">Package Project</button>
-  </section>
-
-  <section id="loading-section">
-    <!-- used for progress -->
-  </section>
 
   <script src="../lib/details-element-polyfill.js"></script>
   <script src="../lib/jszip.min.js"></script>
   <script src="loader.js"></script>
   <script src="packer.js"></script>
 
+  <!-- Core File Loader & Assets -->
   <script>
-    // File Loader & Assets
-
     const fileLoader = new Packer.FileLoader();
 
     fileLoader.files = [
@@ -173,11 +228,8 @@
     ];
   </script>
 
+  <!-- Core Option Logic (no options implemented here) -->
   <script>
-    // Options
-
-    const optionsContainer = document.querySelector('#opts');
-
     class Option {
       constructor(options) {
         // Init main structure
@@ -350,16 +402,38 @@
         return this;
       }
 
+      add(section = defaultSection) {
+        section.root.appendChild(this.root);
+        return this;
+      }
+
       onchange(value) {
 
       }
+    }
 
-      add() {
+    class Section {
+      constructor(title, options = {}) {
+        if ('collapsable' in options ? options.collapsable : true) {
+          this.root = document.createElement('details');
+          this.root.open = 'open' in options ? options.open : false;
+          const summary = document.createElement('summary');
+          summary.textContent = title;
+          this.root.appendChild(summary);
+        } else {
+          this.root = document.createElement('div');
+        }
+
         optionsContainer.appendChild(this.root);
-        return this;
       }
     }
 
+    const optionsContainer = document.querySelector('#options');
+    const defaultSection = new Section('Options', { collapsable: false });
+  </script>
+
+  <!-- Base Options -->
+  <script>
     const projectSource = new Option()
       .label('Project Source')
       .radio('select-project-type', [
@@ -371,11 +445,13 @@
     const projectId = new Option()
       .label('Project ID')
       .input({ pattern: '[0-9]+', value: location.hash ? location.hash.substr(1) : '' })
+      .description('Load a project from scratch.mit.edu. Some very old projects are not supported.')
       .add();
 
     const projectFile = new Option()
       .label('Project File')
       .file({ accept: '.sb3,.sb2' })
+      .description('.sb2 and .sb3 files are supported.')
       .hide()
       .add();
 
@@ -386,23 +462,25 @@
       if (value === 'file') projectFile.show();
     };
 
+    const playerOptionsSection = new Section('Player Options', { open: true });
+
     const turbo = new Option()
       .label('Turbo Mode')
       .input({ type: 'checkbox' })
       .description('Enables Turbo Mode')
-      .add();
+      .add(playerOptionsSection);
 
     const showControls = new Option()
       .label('Show Controls')
       .input({ type: 'checkbox' })
-      .description('Show or hide the control widget')
-      .add();
+      .description('Show or hide the control widget. This includes the flag, stop sign, pause, but not fullscreen (for now). The user can enable or disable Turbo Mode with this enabled.')
+      .add(playerOptionsSection);
 
     const username = new Option()
       .label('Username')
       .input()
       .description('The value of the "username" block.')
-      .add();
+      .add(playerOptionsSection);
 
     const autoplay = new Option()
       .label('Autoplay')
@@ -412,21 +490,32 @@
         { value: 'if-audio-playable', label: 'If audio can be played' },
       ])
       .description('Controls whether the project automatically begins.')
-      .add();
+      .add(playerOptionsSection);
 
     const fps = new Option()
       .label('Framerate')
       .input({ type: 'number', value: 30 })
       .description('Framerate in frames per second.')
-      .add();
-    
-    const phonegap = {
-      enabled: new Option()
+      .add(playerOptionsSection);
+  </script>
+
+  <!-- PhoneGap -->
+  <script>
+    const phonegap = {};
+
+    phonegap.section = new Section('PhoneGap Options');
+
+    phonegap.loader = new Packer.FileLoader();
+    phonegap.defaultIconAsset = { src: 'packager/defaultIcon.png' }
+    phonegap.loader.assets.push(phonegap.defaultIconAsset);
+
+    phonegap.enabled = new Option()
         .label('Enable Phonegap')
         .input({ type: 'checkbox' })
         .description('Enables special behavior and options related to PhoneGap. This will make the output of this packager a ZIP archive instead of HTML.')
-        .add(),
-      xml: new Option()
+        .add(phonegap.section);
+
+    phonegap.xml = new Option()
         .label('PhoneGap config.xml')
         .textarea({ value: `<?xml version="1.0" encoding="UTF-8" ?>
 <widget xmlns="http://www.w3.org/ns/widgets" xmlns:gap="http://phonegap.com/ns/1.0" id="io.github.forkphorus.example" version="1.0.0" >
@@ -436,24 +525,34 @@
   <description>Some description.</description>
 
   <author href="https://scratch.mit.edu/users/you" email="you@example.com">You</author>
-  
+
   <icon src="icon.png" />
 
 </widget>`})
         .description('This is the config file for PhoneGap apps. It allows you to control name, ID, description, author, version, etc. This is XML, so formatting like quotes, angled brackets, and case are important.')
-        .add(),
-      icon: new Option()
+        .hide()
+        .add(phonegap.section);
+
+    phonegap.icon = new Option()
         .label('Phonegap Icon (.png)')
         .file({ accept: '.png' })
         .description('The icon that PhoneGap will use. If you do not select an icon, a default will be used instead.')
-        .add(),
-    };
+        .hide()
+        .add(phonegap.section);
 
+    phonegap.enabled.onchange = (value) => {
+      if (value) {
+        phonegap.xml.show();
+        phonegap.icon.show();
+      } else {
+        phonegap.xml.hide();
+        phonegap.icon.hide();
+      }
+    }
   </script>
 
+  <!-- Interface Logic -->
   <script>
-    // Interface
-
     const loadingSection = document.getElementById('loading-section');
     let progressBar = null;
 
@@ -504,13 +603,22 @@
       updateProgress();
     }
 
+    function bindProgress(name, progress) {
+      progress.start = () => setAction(name);
+      fileLoader.progress.newTask = () => newTask();
+      fileLoader.progress.endTask = () => endTask();
+      fileLoader.progress.setProgress = (progress) => setProgress(progress);
+    }
+
+    function setInputsUsable(usable) {
+      optionsContainer.dataset.usable = usable;
+    }
+
     SBDL.progressHooks.start = () => setAction('Loading project files');
     SBDL.progressHooks.newTask = () => newTask();
     SBDL.progressHooks.finishTask = () => endTask();
 
-    fileLoader.progress.start = () => setAction('Loading internal files');
-    fileLoader.progress.newTask = () => newTask();
-    fileLoader.progress.endTask = () => endTask();
+    bindProgress('Loading internal files', fileLoader.progress);
 
     function addDownloadLink(content, fileName) {
       function getBlob() {
@@ -543,49 +651,64 @@
     document.querySelector('#package-html').onclick = async function() {
       try {
         resetProgress();
+        setInputsUsable(false);
 
+        // Init Packager
         const packager = new Packer.Packager({ fileLoader });
+        bindProgress('Creating archive', packager.archiveProgress);
 
-        packager.archiveProgress.start = () => setAction('Creating archive');
-        packager.archiveProgress.setProgress = (progress) => setProgress(progress);
-
+        // Set options
         packager.playerOptions.turbo = turbo.value;
         packager.playerOptions.autoplayPolicy = autoplay.value;
         packager.playerOptions.username = username.value;
         packager.playerOptions.fps = fps.value;
-
         if (showControls.value) {
-          packager.controlsOptions = {};
+          packager.controlsOptions = { enableFullscreen: false };
         }
 
+        // Fetch the project
         setAction('Loading project data');
-
         if (projectSource.value === 'id') {
           await packager.loadProjectById(projectId.value);
         } else if (projectSource.value === 'file') {
           await packager.loadProjectFromFile(projectFile.value);
         }
 
+        // Package to HTML
         let filename = 'project';
         let filetype = 'html';
         let result = await packager.run();
 
+        // PhoneGap support
         if (phonegap.enabled.value) {
-          filetype = 'zip';
           const pg = new Packer.PhoneGap();
+          bindProgress('Converting to PhoneGap', pg.progress);
           pg.configXML = phonegap.xml.value;
           pg.icon = phonegap.icon.value;
+          if (!pg.icon) {
+            await phonegap.loader.loadMissingAssets();
+            pg.icon = phonegap.defaultIconAsset.blob;
+          }
           result = await pg.package(result);
+          filetype = 'zip';
         }
 
+        // Finalize loading and download the file
+        setProgress(1);
         addDownloadLink(result, `${filename}.${filetype}`);
       } catch (e) {
         console.error(e);
         alert('Error: ' + e);
       }
 
+      // Always reset this state, even when an error occurs.
       progressBar = null;
+      setInputsUsable(true);
     }
+
+    // Show the interface
+    document.getElementById('loading-message').hidden = true;
+    document.getElementById('interface-container').hidden = false;
   </script>
 
 </body>

@@ -24,7 +24,8 @@ window.Packer = (function() {
    * @typedef {Object} PackagerAsset
    * @property {string} src Where to fetch the file from, relative to the forkphorus root
    * @property {boolean} [loaded] Whether the file has been loaded.
-   * @property {boolean} [data] Raw data of the asset in the form of a data: URI
+   * @property {Blob} [blob] Raw binary data of the asset
+   * @property {string} [data] Raw binary data the asset in the form of a data: URI
    */
 
   /**
@@ -46,7 +47,7 @@ window.Packer = (function() {
 
   /**
    * Create an archive from an SBDL files result
-   * @param {*} files 
+   * @param {*} files
    * @param {Progress} progress
    */
   function createArchive(files, progress) {
@@ -63,6 +64,9 @@ window.Packer = (function() {
     }, (metadata) => {
       progress.setProgress(metadata.percent);
       progress.setCaption(metadata.currentFile);
+    }).then((archive) => {
+      progress.setProgress(1);
+      return archive;
     });
   }
 
@@ -77,6 +81,9 @@ window.Packer = (function() {
     start() {}
   }
 
+  /**
+   * FileLoader downloads files for use in the packager.
+   */
   class FileLoader {
     constructor() {
       this.progress = new Progress();
@@ -127,6 +134,7 @@ window.Packer = (function() {
       const blob = await response.blob();
       const data = await readAsURL(blob);
       asset.loaded = true;
+      asset.blob = blob;
       asset.data = data;
     }
 
@@ -160,6 +168,9 @@ window.Packer = (function() {
     }
   }
 
+  /**
+   * Implements PhoneGap support.
+   */
   class PhoneGap {
     constructor() {
       this.configXML = '';
@@ -179,6 +190,9 @@ window.Packer = (function() {
     }
   }
 
+  /**
+   * Converts Scratch projects to HTML.
+   */
   class Packager {
     constructor({ fileLoader }) {
       this.fileLoader = fileLoader;
@@ -283,6 +297,7 @@ window.Packer = (function() {
     <style>
 /* Forkphorus styles... */
 ${styles}
+
 /* Player styles... */
 body {
   background: #000;
@@ -359,6 +374,24 @@ p {
     <script>
 // Forkphorus scripts...
 ${scripts}
+
+// NW.js hook...
+(function() {
+  if (typeof nw !== 'undefined') {
+    // open links in the browser
+    var win = nw.Window.get();
+    win.on('new-win-policy', (frame, url, policy) => {
+      policy.ignore();
+      nw.Shell.openExternal(url);
+    });
+    // fix the size of the window made by NW.js
+    var package = nw.require('package.json');
+    if (package.window && package.window.height && package.window.width) {
+      win.resizeBy(package.window.width - window.innerWidth, package.window.height - window.innerHeight);
+    }
+  }
+})();
+
 // Player scripts...
 (function () {
   'use strict';
