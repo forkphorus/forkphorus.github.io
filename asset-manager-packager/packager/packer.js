@@ -196,7 +196,8 @@ window.Packer = (function() {
   class Packager {
     constructor({ fileLoader }) {
       this.fileLoader = fileLoader;
-      /** Options to be passed to the player. */
+
+      /** Options to be passed to player.setOptions() */
       this.playerOptions = {
         fullscreenPadding: 0,
         fullscreenMode: 'window',
@@ -204,6 +205,11 @@ window.Packer = (function() {
 
       /** Options to be passed to player.addControls(). if null, addControls() is not called. */
       this.controlsOptions = null;
+
+      /** Options regarding the loading screen. */
+      this.loadingScreenOptions = {
+        text: 'forkphorus',
+      };
 
       this.projectType = null;
       this.projectData = null;
@@ -218,11 +224,16 @@ window.Packer = (function() {
       const res = await fetch('https://projects.scratch.mit.edu/' + id);
       if (res.status !== 200) {
         if (res.status === 404) {
-          throw new Error('Project does not exist');
+          throw new Error('Project does not exist: ' + id);
         }
         throw new Error('Cannot get project, got error code: ' + res.status);
       }
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        throw new Error('Project is not supported (binary file)');
+      }
       if ('targets' in data) return 'sb3';
       if ('objName' in data) return 'sb2';
       throw new Error('unknown project type');
@@ -235,7 +246,7 @@ window.Packer = (function() {
       const type = await this._getProjectTypeById(id);
       const result = await SBDL.loadProject(id, type);
       if (result.type !== 'zip') {
-        throw new Error('unknown result type: ' + result.type);
+        throw new Error('Project type not supported');
       }
       const archive = await createArchive(result.files, this.archiveProgress);
       const url = await readAsURL(archive);
@@ -260,9 +271,6 @@ window.Packer = (function() {
      * @param {File} file The file to be read
      */
     async loadProjectFromFile(file) {
-      if (!file) {
-        throw new Error('Missing file');
-      }
       const extension = file.name.split('.').pop();
       return new Promise((resolve, reject) => {
         const fileReader = new FileReader();
@@ -358,7 +366,7 @@ p {
     <div class="player"></div>
     <div class="splash">
       <div>
-        <h1>forkphorus</h1>
+        ${this.loadingScreenOptions.text ? `<h1>${this.loadingScreenOptions.text}</h1>` : ''}
         <div class="progress">
           <div class="progress-bar"></div>
         </div>

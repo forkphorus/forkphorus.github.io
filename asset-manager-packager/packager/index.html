@@ -123,7 +123,6 @@
     </section>
   </div>
 
-
   <script src="../lib/details-element-polyfill.js"></script>
   <script src="../lib/jszip.min.js"></script>
   <script src="loader.js"></script>
@@ -247,6 +246,8 @@
         row.appendChild(this.inputContainer);
         this.root.appendChild(row);
 
+        this.parserFunction = (v) => v;
+
         // Init data
         this._value = null;
       }
@@ -367,6 +368,12 @@
         return this;
       }
 
+      // Set parser
+      parser(p) {
+        this.parserFunction = p;
+        return this;
+      }
+
       // Add a description
       description(content) {
         const row = document.createElement('tr');
@@ -382,8 +389,8 @@
       }
 
       setValue(v) {
-        this._value = v;
-        this.onchange(v);
+        this._value = this.parserFunction(v);
+        this.onchange(this._value);
       }
 
       get value() {
@@ -403,7 +410,7 @@
       }
 
       add(section = defaultSection) {
-        section.root.appendChild(this.root);
+        section._sectionRoot.appendChild(this.root);
         return this;
       }
 
@@ -415,16 +422,16 @@
     class Section {
       constructor(title, options = {}) {
         if ('collapsable' in options ? options.collapsable : true) {
-          this.root = document.createElement('details');
-          this.root.open = 'open' in options ? options.open : false;
+          this._sectionRoot = document.createElement('details');
+          this._sectionRoot.open = 'open' in options ? options.open : false;
           const summary = document.createElement('summary');
           summary.textContent = title;
-          this.root.appendChild(summary);
+          this._sectionRoot.appendChild(summary);
         } else {
-          this.root = document.createElement('div');
+          this._sectionRoot = document.createElement('div');
         }
 
-        optionsContainer.appendChild(this.root);
+        optionsContainer.appendChild(this._sectionRoot);
       }
     }
 
@@ -444,8 +451,9 @@
 
     const projectId = new Option()
       .label('Project ID')
-      .input({ pattern: '[0-9]+', value: location.hash ? location.hash.substr(1) : '' })
-      .description('Load a project from scratch.mit.edu. Some very old projects are not supported.')
+      .input({ pattern: '.*[0-9]+.*', value: location.hash ? location.hash.substr(1) : '' })
+      .parser((input) => input.match(/\d+/)[0])
+      .description('Load a project from scratch.mit.edu. Project ID or URL are accepted.')
       .add();
 
     const projectFile = new Option()
@@ -497,13 +505,18 @@
       .input({ type: 'number', value: 30 })
       .description('Framerate in frames per second.')
       .add(playerOptionsSection);
+    
+    const loadingScreen = new Section('Loading Screen Options');
+    loadingScreen.text = new Option()
+      .label('Loading screen text')
+      .input({ value: 'forkphorus' })
+      .description('Text to be displayed while the project is loading. Set to blank to display nothing.')
+      .add(loadingScreen);
   </script>
 
   <!-- PhoneGap -->
   <script>
-    const phonegap = {};
-
-    phonegap.section = new Section('PhoneGap Options');
+    const phonegap = new Section('PhoneGap Options');
 
     phonegap.loader = new Packer.FileLoader();
     phonegap.defaultIconAsset = { src: 'packager/defaultIcon.png' }
@@ -513,7 +526,7 @@
         .label('Enable Phonegap')
         .input({ type: 'checkbox' })
         .description('Enables special behavior and options related to PhoneGap. This will make the output of this packager a ZIP archive instead of HTML.')
-        .add(phonegap.section);
+        .add(phonegap);
 
     phonegap.xml = new Option()
         .label('PhoneGap config.xml')
@@ -531,14 +544,14 @@
 </widget>`})
         .description('This is the config file for PhoneGap apps. It allows you to control name, ID, description, author, version, etc. This is XML, so formatting like quotes, angled brackets, and case are important.')
         .hide()
-        .add(phonegap.section);
+        .add(phonegap);
 
     phonegap.icon = new Option()
         .label('Phonegap Icon (.png)')
         .file({ accept: '.png' })
         .description('The icon that PhoneGap will use. If you do not select an icon, a default will be used instead.')
         .hide()
-        .add(phonegap.section);
+        .add(phonegap);
 
     phonegap.enabled.onchange = (value) => {
       if (value) {
@@ -666,11 +679,19 @@
           packager.controlsOptions = { enableFullscreen: false };
         }
 
+        packager.loadingScreenOptions.text = loadingScreen.text.value;
+
         // Fetch the project
         setAction('Loading project data');
         if (projectSource.value === 'id') {
+          if (!/^\d+$/.test(projectId.value)) {
+            throw new Error('Invalid Project ID');
+          }
           await packager.loadProjectById(projectId.value);
         } else if (projectSource.value === 'file') {
+          if (!projectFile.value) {
+            throw new Error('No file selected');
+          }
           await packager.loadProjectFromFile(projectFile.value);
         }
 
@@ -698,7 +719,7 @@
         addDownloadLink(result, `${filename}.${filetype}`);
       } catch (e) {
         console.error(e);
-        alert('Error: ' + e);
+        alert('There was an error running the packager:\n' + e);
       }
 
       // Always reset this state, even when an error occurs.
