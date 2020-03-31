@@ -48,7 +48,6 @@ var P;
         config.useWebGL = features.indexOf('webgl') > -1;
         config.supportVideoSensing = features.indexOf('video') > -1;
         config.experimentalOptimizations = features.indexOf('opt') > -1;
-        config.accurateFilters = features.indexOf('filters') > -1;
         config.scale = window.devicePixelRatio || 1;
         config.PROJECT_API = 'https://projects.scratch.mit.edu/$id';
     })(config = P.config || (P.config = {}));
@@ -1656,7 +1655,6 @@ var P;
         core.Sprite = Sprite;
         class ImageLOD {
             constructor(image) {
-                this.imageData = null;
                 this.image = image;
                 if (image.tagName === 'CANVAS') {
                     const ctx = image.getContext('2d');
@@ -1684,13 +1682,6 @@ var P;
                 ctx.drawImage(this.image, 0, 0);
                 this.context = ctx;
                 return ctx;
-            }
-            getImageData() {
-                if (this.imageData)
-                    return this.imageData;
-                const context = this.getContext();
-                this.imageData = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
-                return this.imageData;
             }
         }
         core.ImageLOD = ImageLOD;
@@ -8514,25 +8505,17 @@ var P;
                     ctx.imageSmoothingEnabled = this.imageSmoothingEnabled;
                     if (!this.noEffects) {
                         ctx.globalAlpha = Math.max(0, Math.min(1, 1 - c.filters.ghost / 100));
-                        if (P.config.accurateFilters) {
-                            if (c.filters.brightness !== 0 || c.filters.color !== 0) {
-                                let sourceImage = lod.getImageData();
-                                let destImage = ctx.createImageData(sourceImage.width, sourceImage.height);
-                                if (c.filters.color !== 0) {
-                                    this.applyColorEffect(sourceImage, destImage, c.filters.color / 200);
-                                    sourceImage = destImage;
-                                }
-                                if (c.filters.brightness !== 0) {
-                                    this.applyBrightnessEffect(sourceImage, destImage, c.filters.brightness / 100 * 255);
-                                }
-                                workingRenderer.canvas.width = sourceImage.width;
-                                workingRenderer.canvas.height = sourceImage.height;
-                                workingRenderer.ctx.putImageData(destImage, 0, 0);
-                                ctx.drawImage(workingRenderer.canvas, x, y, w, h);
-                            }
-                            else {
-                                ctx.drawImage(lod.image, x, y, w, h);
-                            }
+                        if (c.filters.brightness === 100) {
+                            workingRenderer.canvas.width = w;
+                            workingRenderer.canvas.height = h;
+                            workingRenderer.ctx.save();
+                            workingRenderer.ctx.translate(0, 0);
+                            workingRenderer.ctx.drawImage(lod.image, 0, 0, w, h);
+                            workingRenderer.ctx.globalCompositeOperation = 'source-in';
+                            workingRenderer.ctx.fillStyle = 'white';
+                            workingRenderer.ctx.fillRect(0, 0, 480, 360);
+                            ctx.drawImage(workingRenderer.canvas, x, y);
+                            workingRenderer.ctx.restore();
                         }
                         else {
                             const filter = getCSSFilter(c.filters);
