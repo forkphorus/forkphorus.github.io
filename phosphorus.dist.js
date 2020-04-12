@@ -1955,8 +1955,6 @@ var P;
                     fileReader.onerror = function (err) {
                         reject('Could not read object');
                     };
-                    fileReader.onprogress = function (progress) {
-                    };
                     fileReader.readAsArrayBuffer(object);
                 });
             }
@@ -1970,8 +1968,6 @@ var P;
                     fileReader.onerror = function (err) {
                         reject('Could not read object');
                     };
-                    fileReader.onprogress = function (progress) {
-                    };
                     fileReader.readAsDataURL(object);
                 });
             }
@@ -1984,8 +1980,6 @@ var P;
                     };
                     fileReader.onerror = function (err) {
                         reject('Could not read object');
-                    };
-                    fileReader.onprogress = function (progress) {
                     };
                     fileReader.readAsText(object);
                 });
@@ -2033,12 +2027,14 @@ var P;
             constructor(url) {
                 super();
                 this.url = url;
+                this.aborted = false;
                 this.shouldIgnoreErrors = false;
                 this.workComputable = false;
                 this.totalWork = 0;
                 this.completedWork = 0;
                 this.complete = false;
                 this.status = 0;
+                this.xhr = null;
             }
             isComplete() {
                 return this.complete;
@@ -2053,6 +2049,10 @@ var P;
                 return this.completedWork;
             }
             abort() {
+                this.aborted = true;
+                if (this.xhr) {
+                    this.xhr.abort();
+                }
             }
             ignoreErrors() {
                 this.shouldIgnoreErrors = true;
@@ -2067,7 +2067,7 @@ var P;
                 this.completedWork = event.loaded;
                 this.updateLoaderProgress();
             }
-            load(type) {
+            _load() {
                 return new Promise((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
                     xhr.addEventListener('load', () => {
@@ -2090,19 +2090,76 @@ var P;
                         this.updateProgress(e);
                     });
                     xhr.addEventListener('error', (err) => {
-                        reject(`Error while downloading ${this.url} (error) (${xhr.status})`);
+                        reject(`Error while downloading ${this.url} (error) (${xhr.status}/${xhr.readyState})`);
                     });
                     xhr.addEventListener('abort', (err) => {
-                        reject(`Error while downloading ${this.url} (abort) (${xhr.status})`);
+                        reject(`Error while downloading ${this.url} (abort) (${xhr.status}/${xhr.readyState})`);
                     });
                     xhr.open('GET', this.url);
-                    xhr.responseType = type;
+                    xhr.responseType = this.responseType;
+                    this.xhr = xhr;
                     setTimeout(xhr.send.bind(xhr));
+                });
+            }
+            load(type) {
+                this.responseType = type;
+                return new Promise((resolve, reject) => {
+                    this._load()
+                        .then((response) => resolve(response))
+                        .catch((err) => {
+                        if (this.aborted) {
+                            reject(err);
+                            return;
+                        }
+                        console.warn(`First attempt to download ${this.url} failed, trying again.`, err);
+                        this._load()
+                            .then((response) => resolve(response))
+                            .catch((err) => reject(err));
+                    });
                 });
             }
         }
         Request.acceptableResponseCodes = [0, 200];
         io.Request = Request;
+        class Img extends AbstractTask {
+            constructor(src) {
+                super();
+                this.complete = false;
+                this.aborted = false;
+                this.src = src;
+            }
+            load() {
+                return new Promise((resolve, reject) => {
+                    const image = new Image();
+                    image.onload = () => {
+                        this.complete = true;
+                        this.updateLoaderProgress();
+                        resolve(image);
+                    };
+                    image.onerror = (err) => {
+                        reject('Failed to load image: ' + image.src);
+                    };
+                    image.crossOrigin = 'anonymous';
+                    image.src = this.src;
+                });
+            }
+            isComplete() {
+                return this.complete;
+            }
+            isWorkComputable() {
+                return false;
+            }
+            getTotalWork() {
+                return 0;
+            }
+            getCompletedWork() {
+                return 0;
+            }
+            abort() {
+                this.aborted = true;
+            }
+        }
+        io.Img = Img;
         class Manual extends AbstractTask {
             constructor() {
                 super(...arguments);
@@ -2195,8 +2252,6 @@ var P;
                 const progress = this.calculateProgress();
                 this.onprogress(progress);
             }
-            onprogress(progress) {
-            }
             resetTasks() {
                 this._tasks = [];
                 this.updateProgress();
@@ -2211,6 +2266,8 @@ var P;
                 for (const task of this._tasks) {
                     task.abort();
                 }
+            }
+            onprogress(progress) {
             }
         }
         io.Loader = Loader;
@@ -4244,19 +4301,7 @@ var P;
         sb2.Scratch2Sprite = Scratch2Sprite;
         class BaseSB2Loader extends P.io.Loader {
             loadImage(url) {
-                const manual = this.addTask(new P.io.Manual());
-                var image = new Image();
-                image.crossOrigin = 'anonymous';
-                return new Promise((resolve, reject) => {
-                    image.onload = function () {
-                        manual.markComplete();
-                        resolve(image);
-                    };
-                    image.onerror = function (err) {
-                        reject('Failed to load image: ' + image.src);
-                    };
-                    image.src = url;
-                });
+                return this.addTask(new P.io.Img(url)).load();
             }
             loadFonts() {
                 return Promise.all([
@@ -6276,19 +6321,7 @@ var P;
                 return this.addTask(new P.io.Request(sb3.ASSETS_API.replace('$md5ext', path))).load('arraybuffer');
             }
             getAsImage(path) {
-                const task = this.addTask(new P.io.Manual());
-                return new Promise((resolve, reject) => {
-                    const image = new Image();
-                    image.onload = () => {
-                        task.markComplete();
-                        resolve(image);
-                    };
-                    image.onerror = (err) => {
-                        reject('Failed to load image: ' + image.src);
-                    };
-                    image.crossOrigin = 'anonymous';
-                    image.src = sb3.ASSETS_API.replace('$md5ext', path);
-                });
+                return this.addTask(new P.io.Img(sb3.ASSETS_API.replace('$md5ext', path))).load();
             }
             load() {
                 if (this.projectId) {
