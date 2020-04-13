@@ -1653,100 +1653,118 @@ var P;
             }
         }
         core.Sprite = Sprite;
-        class ImageLOD {
-            constructor(image) {
-                this.image = image;
-                if (image.tagName === 'CANVAS') {
-                    const ctx = image.getContext('2d');
-                    if (!ctx) {
-                        throw new Error('Cannot get 2d rendering context of costume image');
-                    }
-                    this.context = ctx;
-                }
-                else {
-                    this.context = null;
-                }
-                this.width = image.width;
-                this.height = image.height;
-            }
-            getContext() {
-                if (this.context)
-                    return this.context;
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    throw new Error('cannot get 2d rendering context');
-                }
-                canvas.width = this.width;
-                canvas.height = this.height;
-                ctx.drawImage(this.image, 0, 0);
-                this.context = ctx;
-                return ctx;
-            }
-        }
-        core.ImageLOD = ImageLOD;
         class Costume {
             constructor(costumeData) {
-                this.bitmapResolution = costumeData.bitmapResolution;
-                this.scale = 1 / this.bitmapResolution;
                 this.name = costumeData.name;
+                this.scale = 1 / costumeData.bitmapResolution;
                 this.rotationCenterX = costumeData.rotationCenterX;
                 this.rotationCenterY = costumeData.rotationCenterY;
-            }
-            getContext() {
-                return this.get(1).getContext();
             }
         }
         core.Costume = Costume;
         class BitmapCostume extends Costume {
-            constructor(source, options) {
+            constructor(image, options) {
                 super(options);
-                this.source = new ImageLOD(source);
-                this.width = source.width;
-                this.height = source.height;
+                if (image.tagName === 'CANVAS') {
+                    const ctx = image.getContext('2d');
+                    if (!ctx) {
+                        throw new Error('Cannot get 2d rendering context of costume image, despite it already being a canvas.');
+                    }
+                    this.ctx = ctx;
+                }
+                this.image = image;
+                this.width = image.width;
+                this.height = image.height;
+                this.isScalable = false;
             }
-            get(scale) {
-                return this.source;
+            getContext() {
+                if (this.ctx) {
+                    return this.ctx;
+                }
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    throw new Error('cannot get 2d rendering context (getContext on Bitmap)');
+                }
+                canvas.width = this.width;
+                canvas.height = this.height;
+                ctx.drawImage(this.image, 0, 0);
+                this.ctx = ctx;
+                return ctx;
+            }
+            getImage() {
+                return this.image;
+            }
+            requestSize(scale) {
             }
         }
         core.BitmapCostume = BitmapCostume;
         class VectorCostume extends Costume {
             constructor(svg, options) {
                 super(options);
-                this.scales = [];
+                this.currentScale = 1;
                 if (svg.height < 1 || svg.width < 1) {
                     svg = new Image(1, 1);
                 }
+                this.isScalable = true;
                 this.width = svg.width;
                 this.height = svg.height;
-                this.source = svg;
+                this.svg = svg;
+                this.maxZoom = this.calculateMaxZoom();
             }
-            getScale(scale) {
-                const canvas = document.createElement('canvas');
-                canvas.width = Math.max(1, this.width * scale);
-                canvas.height = Math.max(1, this.height * scale);
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    for (var i = 0; i < this.scales.length; i++) {
-                        if (this.scales[i]) {
-                            return this.scales[i];
-                        }
+            calculateMaxZoom() {
+                if (VectorCostume.MAX_SIZE / this.width < VectorCostume.MAX_ZOOM) {
+                    return VectorCostume.MAX_SIZE / this.width;
+                }
+                if (VectorCostume.MAX_SIZE / this.height < VectorCostume.MAX_ZOOM) {
+                    return VectorCostume.MAX_SIZE / this.height;
+                }
+                return VectorCostume.MAX_ZOOM;
+            }
+            render() {
+                const width = Math.max(1, this.width * this.currentScale);
+                const height = Math.max(1, this.height * this.currentScale);
+                if (!this.canvas) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        throw new Error('cannot get 2d rendering context (initCanvas on Vector)');
                     }
-                    return new ImageLOD(this.source);
+                    this.canvas = canvas;
+                    this.ctx = ctx;
                 }
-                ctx.drawImage(this.source, 0, 0, canvas.width, canvas.height);
-                return new ImageLOD(canvas);
+                else {
+                    this.canvas.width = width;
+                    this.canvas.height = height;
+                }
+                this.ctx.drawImage(this.svg, 0, 0, width, height);
             }
-            get(scale) {
-                scale = Math.min(VectorCostume.MAX_ZOOM, Math.ceil(scale));
-                const index = scale - 1;
-                if (!this.scales[index]) {
-                    this.scales[index] = this.getScale(scale);
+            requestSize(costumeScale) {
+                const scale = Math.min(Math.ceil(costumeScale), this.maxZoom);
+                if (this.currentScale < scale) {
+                    this.currentScale = scale;
+                    this.render();
                 }
-                return this.scales[index];
+            }
+            getContext() {
+                if (this.ctx) {
+                    return this.ctx;
+                }
+                this.render();
+                return this.ctx;
+            }
+            getImage() {
+                if (this.canvas) {
+                    return this.canvas;
+                }
+                this.render();
+                return this.canvas;
             }
         }
-        VectorCostume.MAX_ZOOM = 6;
+        VectorCostume.MAX_ZOOM = 8;
+        VectorCostume.MAX_SIZE = 1024;
         core.VectorCostume = VectorCostume;
         if (/iPhone/.test(navigator.userAgent) || /iPad/.test(navigator.userAgent) || /iPod/.test(navigator.userAgent) || window.safari) {
             VectorCostume.MAX_ZOOM = 1;
@@ -8427,56 +8445,6 @@ var P;
                 ctx.imageSmoothingEnabled = false;
                 return { canvas, ctx };
             }
-            function rgb2hsv(r, g, b) {
-                var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min, h, s = (max === 0 ? 0 : d / max), v = max / 255;
-                switch (max) {
-                    case min:
-                        h = 0;
-                        break;
-                    case r:
-                        h = (g - b) + d * (g < b ? 6 : 0);
-                        h /= 6 * d;
-                        break;
-                    case g:
-                        h = (b - r) + d * 2;
-                        h /= 6 * d;
-                        break;
-                    case b:
-                        h = (r - g) + d * 4;
-                        h /= 6 * d;
-                        break;
-                }
-                return [h, s, v];
-            }
-            function hsv2rgb(h, s, v) {
-                var r, g, b, i, f, p, q, t;
-                i = Math.floor(h * 6);
-                f = h * 6 - i;
-                p = v * (1 - s);
-                q = v * (1 - f * s);
-                t = v * (1 - (1 - f) * s);
-                switch (i % 6) {
-                    case 0:
-                        r = v, g = t, b = p;
-                        break;
-                    case 1:
-                        r = q, g = v, b = p;
-                        break;
-                    case 2:
-                        r = p, g = v, b = t;
-                        break;
-                    case 3:
-                        r = p, g = q, b = v;
-                        break;
-                    case 4:
-                        r = t, g = p, b = v;
-                        break;
-                    case 5:
-                        r = v, g = p, b = q;
-                        break;
-                }
-                return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
-            }
             class SpriteRenderer2D {
                 constructor() {
                     this.noEffects = false;
@@ -8531,7 +8499,11 @@ var P;
                         }
                         objectScale *= c.scale;
                     }
-                    const lod = costume.get(objectScale * c.stage.zoom);
+                    if (costume.isScalable) {
+                        costume.requestSize(objectScale * globalScale);
+                    }
+                    ctx.imageSmoothingEnabled = costume.isScalable || this.imageSmoothingEnabled;
+                    const image = costume.getImage();
                     const x = -costume.rotationCenterX * objectScale;
                     const y = -costume.rotationCenterY * objectScale;
                     const w = costume.width * objectScale;
@@ -8540,7 +8512,6 @@ var P;
                         ctx.restore();
                         return;
                     }
-                    ctx.imageSmoothingEnabled = this.imageSmoothingEnabled;
                     if (!this.noEffects) {
                         ctx.globalAlpha = Math.max(0, Math.min(1, 1 - c.filters.ghost / 100));
                         if (c.filters.brightness === 100) {
@@ -8548,10 +8519,10 @@ var P;
                             workingRenderer.canvas.height = h;
                             workingRenderer.ctx.save();
                             workingRenderer.ctx.translate(0, 0);
-                            workingRenderer.ctx.drawImage(lod.image, 0, 0, w, h);
+                            workingRenderer.ctx.drawImage(image, 0, 0, w, h);
                             workingRenderer.ctx.globalCompositeOperation = 'source-in';
                             workingRenderer.ctx.fillStyle = 'white';
-                            workingRenderer.ctx.fillRect(0, 0, 480, 360);
+                            workingRenderer.ctx.fillRect(0, 0, w, h);
                             ctx.drawImage(workingRenderer.canvas, x, y);
                             workingRenderer.ctx.restore();
                         }
@@ -8560,54 +8531,13 @@ var P;
                             if (filter !== '') {
                                 ctx.filter = getCSSFilter(c.filters);
                             }
-                            ctx.drawImage(lod.image, x, y, w, h);
+                            ctx.drawImage(image, x, y, w, h);
                         }
                     }
                     else {
-                        ctx.drawImage(lod.image, x, y, w, h);
+                        ctx.drawImage(image, x, y, w, h);
                     }
                     ctx.restore();
-                }
-                applyColorEffect(sourceImage, destImage, hueShift) {
-                    const MIN_VALUE = 0.11 / 2;
-                    const MIN_SATURATION = 0.09;
-                    const colorCache = {};
-                    for (var i = 0; i < sourceImage.data.length; i += 4) {
-                        const r = sourceImage.data[i];
-                        const g = sourceImage.data[i + 1];
-                        const b = sourceImage.data[i + 2];
-                        destImage.data[i + 3] = sourceImage.data[i + 3];
-                        const rgbHash = (r << 16) + (g << 8) + b;
-                        const cachedColor = colorCache[rgbHash];
-                        if (cachedColor !== undefined) {
-                            destImage.data[i] = (0xff0000 & cachedColor) >> 16;
-                            destImage.data[i + 1] = (0x00ff00 & cachedColor) >> 8;
-                            destImage.data[i + 2] = (0x0000ff & cachedColor);
-                            continue;
-                        }
-                        let hsv = rgb2hsv(r, g, b);
-                        if (hsv[2] < MIN_VALUE)
-                            hsv = [0, 1, MIN_VALUE];
-                        else if (hsv[1] < MIN_SATURATION)
-                            hsv = [0, MIN_SATURATION, hsv[2]];
-                        hsv[0] = hsv[0] + hueShift - Math.floor(hsv[0] + hueShift);
-                        if (hsv[0] < 0)
-                            hsv[0] += 1;
-                        const rgb = hsv2rgb(hsv[0], hsv[1], hsv[2]);
-                        colorCache[rgbHash] = (rgb[0] << 16) + (rgb[1] << 8) + rgb[2];
-                        destImage.data[i] = rgb[0];
-                        destImage.data[i + 1] = rgb[1];
-                        destImage.data[i + 2] = rgb[2];
-                    }
-                }
-                applyBrightnessEffect(sourceImage, destImage, brightness) {
-                    const length = sourceImage.data.length;
-                    for (var i = 0; i < length; i += 4) {
-                        destImage.data[i] = sourceImage.data[i] + brightness;
-                        destImage.data[i + 1] = sourceImage.data[i + 1] + brightness;
-                        destImage.data[i + 2] = sourceImage.data[i + 2] + brightness;
-                        destImage.data[i + 3] = sourceImage.data[i + 3];
-                    }
                 }
             }
             canvas2d.SpriteRenderer2D = SpriteRenderer2D;
@@ -8742,8 +8672,8 @@ var P;
                     else if (sprite.rotationStyle === 1 && sprite.direction < 0) {
                         cx = -cx;
                     }
-                    const positionX = Math.round(cx * costume.bitmapResolution + costume.rotationCenterX);
-                    const positionY = Math.round(cy * costume.bitmapResolution + costume.rotationCenterY);
+                    const positionX = Math.round(cx / costume.scale + costume.rotationCenterX);
+                    const positionY = Math.round(cy / costume.scale + costume.rotationCenterY);
                     const data = costume.getContext().getImageData(positionX, positionY, 1, 1).data;
                     return data[3] !== 0;
                 }
@@ -9119,12 +9049,12 @@ var P;
                     this.boundFramebuffer = buffer;
                 }
                 reset(scale) {
-                    this.canvas.width = scale * P.config.scale * 480;
-                    this.canvas.height = scale * P.config.scale * 360;
+                    this.canvas.width = scale * 480;
+                    this.canvas.height = scale * 360;
                     this.resetFramebuffer(scale);
                 }
                 resetFramebuffer(scale) {
-                    this.gl.viewport(0, 0, 480 * scale, 360 * scale);
+                    this.gl.viewport(0, 0, 480, 360);
                     if (this.globalScaleMatrix[0] !== scale) {
                         this.globalScaleMatrix = P.m3.scaling(scale, scale);
                     }
@@ -9137,12 +9067,12 @@ var P;
                 _drawChild(child, shader) {
                     this.gl.useProgram(shader.program);
                     const costume = child.costumes[child.currentCostumeIndex];
-                    const lod = costume.get(P.core.isSprite(child) ? child.scale : 1);
-                    if (!this.costumeTextures.has(lod)) {
-                        const texture = this.convertToTexture(lod.image);
-                        this.costumeTextures.set(lod, texture);
+                    if (!this.costumeTextures.has(costume)) {
+                        const image = costume.getImage();
+                        const texture = this.convertToTexture(image);
+                        this.costumeTextures.set(costume, texture);
                     }
-                    this.gl.bindTexture(this.gl.TEXTURE_2D, this.costumeTextures.get(lod));
+                    this.gl.bindTexture(this.gl.TEXTURE_2D, this.costumeTextures.get(costume));
                     shader.attributeBuffer('a_position', this.quadBuffer);
                     const matrix = P.m3.projection(this.canvas.width, this.canvas.height);
                     P.m3.multiply(matrix, this.globalScaleMatrix);
