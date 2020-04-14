@@ -1407,6 +1407,18 @@ var P;
                     right: 0,
                 };
             }
+            touching(thing) {
+                if (thing == "_mouse_") {
+                    return true;
+                }
+                return false;
+            }
+            touchingColor(color) {
+                return false;
+            }
+            colorTouchingColor(colorA, colorB) {
+                return false;
+            }
             submitPrompt() {
                 if (this.promptId < this.nextPromptId) {
                     this.answer = this.prompt.value;
@@ -1723,15 +1735,16 @@ var P;
                 return VectorCostume.MAX_SCALE;
             }
             render() {
-                const width = Math.max(1, this.width * this.currentScale);
-                const height = Math.max(1, this.height * this.currentScale);
+                const width = Math.floor(Math.max(1, this.width * this.currentScale));
+                const height = Math.floor(Math.max(1, this.height * this.currentScale));
                 if (!this.canvas) {
                     const canvas = document.createElement('canvas');
                     canvas.width = width;
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     if (!ctx) {
-                        throw new Error(`cannot get 2d rendering context in initCanvas on Vector "${this.name}" @ ${this.currentScale}/${this.maxScale} | ${width}x${height}`);
+                        const fmt = (n) => Math.round(n * 100) / 100;
+                        throw new Error(`cannot get 2d rendering context in initCanvas on Vector "${this.name}" @ ${fmt(this.currentScale)}/${fmt(this.maxScale)} | ${width}x${height}`);
                     }
                     this.canvas = canvas;
                     this.ctx = ctx;
