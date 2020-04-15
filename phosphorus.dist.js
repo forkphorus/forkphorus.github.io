@@ -1780,7 +1780,7 @@ var P;
         VectorCostume.MAX_SCALE = 8;
         VectorCostume.MAX_SIZE = 1024;
         core.VectorCostume = VectorCostume;
-        if (/iPhone/.test(navigator.userAgent) || /iPad/.test(navigator.userAgent) || /iPod/.test(navigator.userAgent) || window.safari) {
+        if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
             console.log('Vector scaling is disabled');
             VectorCostume.MAX_SCALE = 1;
         }
