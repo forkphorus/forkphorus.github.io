@@ -8689,8 +8689,12 @@ var P;
                     else if (sprite.rotationStyle === 1 && sprite.direction < 0) {
                         cx = -cx;
                     }
-                    const positionX = Math.round(cx / costume.scale + costume.rotationCenterX);
-                    const positionY = Math.round(cy / costume.scale + costume.rotationCenterY);
+                    let positionX = Math.round(cx / costume.scale + costume.rotationCenterX);
+                    let positionY = Math.round(cy / costume.scale + costume.rotationCenterY);
+                    if (costume instanceof P.core.VectorCostume) {
+                        positionX *= costume.currentScale;
+                        positionY *= costume.currentScale;
+                    }
                     const data = costume.getContext().getImageData(positionX, positionY, 1, 1).data;
                     return data[3] !== 0;
                 }
