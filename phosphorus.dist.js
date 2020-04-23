@@ -1238,8 +1238,8 @@ var P;
                     y = -180;
                 if (y > 180)
                     y = 180;
-                this.mouseX = x;
-                this.mouseY = y;
+                this.mouseX = Math.round(x);
+                this.mouseY = Math.round(y);
             }
             setZoom(zoom) {
                 if (this.zoom === zoom)
@@ -5647,7 +5647,7 @@ var P;
                     const warp = script[0][4];
                     const name = script[0][1];
                     if (!object.procedures[name]) {
-                        object.procedures[script[0][1]] = new Scratch2Procedure(f, warp, inputs);
+                        object.procedures[name] = new Scratch2Procedure(f, warp, inputs);
                     }
                     else {
                         warn('procedure already exists: ' + name);
