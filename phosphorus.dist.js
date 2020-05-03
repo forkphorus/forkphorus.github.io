@@ -1414,6 +1414,8 @@ var P;
             }
             forward() {
             }
+            setDirection(direction) {
+            }
             rotatedBounds() {
                 return {
                     top: 0,
