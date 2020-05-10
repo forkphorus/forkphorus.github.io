@@ -4681,20 +4681,23 @@ var P;
                     element.setAttribute('font-size', size = 18);
                 }
                 var bb = element.getBBox();
-                var x = 4 - .6 * element.transform.baseVal.consolidate().matrix.a;
-                var y = (element.getAttribute('y') - bb.y) * 1.1;
-                element.setAttribute('x', x);
-                element.setAttribute('y', y);
-                var lines = element.textContent.split('\n');
-                if (lines.length > 1) {
-                    element.textContent = lines[0];
-                    var lineHeight = LINE_HEIGHTS[font] || 1;
-                    for (var i = 1, l = lines.length; i < l; i++) {
-                        var tspan = document.createElementNS(null, 'tspan');
-                        tspan.textContent = lines[i];
-                        tspan.setAttribute('x', '' + x);
-                        tspan.setAttribute('y', '' + (y + size * i * lineHeight));
-                        element.appendChild(tspan);
+                var transform = element.transform.baseVal.consolidate();
+                if (transform) {
+                    var x = 4 - .6 * transform.matrix.a;
+                    var y = (element.getAttribute('y') - bb.y) * 1.1;
+                    element.setAttribute('x', x);
+                    element.setAttribute('y', y);
+                    var lines = element.textContent.split('\n');
+                    if (lines.length > 1) {
+                        element.textContent = lines[0];
+                        var lineHeight = LINE_HEIGHTS[font] || 1;
+                        for (var i = 1, l = lines.length; i < l; i++) {
+                            var tspan = document.createElementNS(null, 'tspan');
+                            tspan.textContent = lines[i];
+                            tspan.setAttribute('x', '' + x);
+                            tspan.setAttribute('y', '' + (y + size * i * lineHeight));
+                            element.appendChild(tspan);
+                        }
                     }
                 }
             }
@@ -6934,10 +6937,10 @@ var P;
         const VALUE = util.getInput('VALUE', 'number');
         util.writeLn('save();');
         util.writeLn(`R.times = ${VALUE};`);
-        util.writeLn(`if (R.times > 0) ${VARIABLE} = 0;`);
+        util.writeLn('R.current = 0;');
         const label = util.addLabel();
-        util.writeLn(`if (${VARIABLE} < R.times) {`);
-        util.writeLn(`  ${VARIABLE} = ${util.asType(VARIABLE, 'number')} + 1;`);
+        util.writeLn(`if (R.current < R.times) {`);
+        util.writeLn(`  ${VARIABLE} = ++R.current;`);
         util.write(SUBSTACK);
         util.queue(label);
         util.writeLn('} else {');
@@ -7205,12 +7208,14 @@ var P;
     statementLibrary['looks_say'] = function (util) {
         const MESSAGE = util.getInput('MESSAGE', 'any');
         util.writeLn(`S.say(${MESSAGE}, false);`);
+        util.visual('visible');
     };
     statementLibrary['looks_sayforsecs'] = function (util) {
         const MESSAGE = util.getInput('MESSAGE', 'any');
         const SECS = util.getInput('SECS', 'number');
         util.writeLn('save();');
         util.writeLn(`R.id = S.say(${MESSAGE}, false);`);
+        util.visual('visible');
         util.writeLn('R.start = runtime.now();');
         util.writeLn(`R.duration = ${SECS};`);
         const label = util.addLabel();
@@ -7221,7 +7226,6 @@ var P;
         util.writeLn('  S.say("");');
         util.writeLn('}');
         util.writeLn('restore();');
-        util.visual('visible');
     };
     statementLibrary['looks_seteffectto'] = function (util) {
         const EFFECT = util.sanitizedString(util.getField('EFFECT')).toLowerCase();
@@ -7261,6 +7265,7 @@ var P;
         const SECS = util.getInput('SECS', 'number');
         util.writeLn('save();');
         util.writeLn(`R.id = S.say(${MESSAGE}, true);`);
+        util.visual('visible');
         util.writeLn('R.start = runtime.now();');
         util.writeLn(`R.duration = ${SECS};`);
         const label = util.addLabel();
@@ -7271,7 +7276,6 @@ var P;
         util.writeLn('  S.say("");');
         util.writeLn('}');
         util.writeLn('restore();');
-        util.visual('visible');
     };
     statementLibrary['motion_changexby'] = function (util) {
         const DX = util.getInput('DX', 'number');
