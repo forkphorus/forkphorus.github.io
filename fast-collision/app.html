@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="robots" content="noindex">
+  <title>forkphorus</title>
+  <link rel="stylesheet" href="phosphorus.css">
+
+  <style>
+    body {
+      background: #000;
+      margin: 0;
+      overflow: hidden;
+    }
+    .player {
+      position: absolute;
+    }
+    .splash, .error {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      display: table;
+      color: #fff;
+      cursor: default;
+    }
+    .error {
+      display: none;
+    }
+    .splash > div,
+    .error > div {
+      display: table-cell;
+      height: 100%;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .progress {
+      width: 80%;
+      height: 16px;
+      border: 1px solid #fff;
+      margin: 0 auto;
+    }
+    .progress-bar {
+      background: #fff;
+      width: 10%;
+      height: 100%;
+    }
+    h1 {
+      font: 300 72px Helvetica Neue, Helvetica, Arial, sans-serif;
+      margin: 0 0 16px;
+    }
+    p {
+      font: 300 24px/1.5 Helvetica Neue, Helvetica, Arial, sans-serif;
+      margin: 0;
+      color: rgba(255, 255, 255, .6);
+    }
+    .error a {
+      color: #fff;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="player"></div>
+  <div class="splash">
+    <div>
+      <h1>forkphorus</h1>
+      <div class="progress">
+        <div class="progress-bar"></div>
+      </div>
+    </div>
+  </div>
+  <div class="error">
+    <div>
+      <h1>forkphorus</h1>
+      <p class="error-report"></p>
+    </div>
+  </div>
+
+  <script src="lib/jszip.min.js"></script>
+  <script src="lib/fontfaceobserver.standalone.js"></script>
+  <script src="lib/stackblur.min.js"></script>
+  <script src="lib/rgbcolor.js"></script>
+  <script src="lib/canvg.min.js"></script>
+  <script src="phosphorus.dist.js"></script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var player = new P.player.Player();
+    var splash = document.querySelector('.splash');
+    var error = document.querySelector('.error');
+    var progressBar = document.querySelector('.progress');
+    var progressBarFill = document.querySelector('.progress-bar');
+
+    var errorHandler = new P.player.ErrorHandler(player, {
+      container: document.querySelector('.error-report'),
+    });    
+    player.onprogress.subscribe(function(progress) {
+      progressBarFill.style.width = (10 + progress * 90) + '%';
+    });
+    player.onerror.subscribe(function(e) {
+      player.exitFullscreen();
+      error.style.display = 'table';
+    });
+    document.querySelector('.player').appendChild(player.root);
+
+    document.addEventListener('touchmove', function(e) {
+      e.preventDefault();
+    });
+
+    var projectId = 17088932;
+
+    var params = location.search.substr(1).split('&');
+    params.forEach(function(p) {
+      var parts = p.split('=');
+      switch (parts[0]) {
+        case 'id':
+          projectId = Number(parts[1]);
+          break;
+        case 'turbo':
+          player.setOptions({ turbo: parts[1] !== 'false' });
+          break;
+        case 'full-screen':
+          // legacy value
+          player.setOptions({ fullscreenMaxWidth: parts[1] !== 'false' ? Infinity : 480 });
+          break;
+        case 'w':
+          player.setOptions({ fullscreenMaxWidth: Number(parts[1]) || 480 });
+          break;
+        case 'fps':
+          player.setOptions({ fps: Number(parts[1]) });
+          break;
+        default:
+          console.warn('unknown search param', parts);
+      }
+    });
+
+    // do not focus the stage when embedded
+    if (window.parent) {
+      player.setOptions({ focusOnLoad: false });
+    }
+
+    player.setOptions({
+      fullscreenMode: 'window',
+      autoplayPolicy: 'if-audio-playable',
+    });
+
+    player.loadProjectById(projectId)
+      .then(function() {
+        player.enterFullscreen();
+        splash.style.display = 'none';
+      });
+
+    player.getProjectMeta().load().then((meta) => {
+      if (meta.getTitle()) {
+        document.title = meta.getTitle();
+      }
+    });
+  }());
+
+  </script>
+</body>
+</html>
