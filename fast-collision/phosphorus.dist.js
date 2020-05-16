@@ -8828,6 +8828,13 @@ var P;
     (function (renderer) {
         var fastCollider;
         (function (fastCollider) {
+            class FastImageData {
+                constructor(imageData) {
+                    this.width = imageData.width;
+                    this.height = imageData.height;
+                    this.data = imageData.data;
+                }
+            }
             class FastCollider {
                 constructor() {
                     this.imageData = new Map();
@@ -8835,7 +8842,8 @@ var P;
                 getImageData(costume) {
                     if (!this.imageData.has(costume)) {
                         const ctx = costume.getContext();
-                        this.imageData.set(costume, ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height));
+                        const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+                        this.imageData.set(costume, new FastImageData(imageData));
                     }
                     return this.imageData.get(costume);
                 }
@@ -8843,21 +8851,18 @@ var P;
                     const costume = sprite.costumes[sprite.currentCostumeIndex];
                     const imageData = this.getImageData(costume);
                     var cx = (x - sprite.scratchX) / sprite.scale;
-                    var cy = (sprite.scratchY - y) / sprite.scale;
                     cx = Math.floor(cx / costume.scale + costume.rotationCenterX);
-                    cy = Math.floor(cy / costume.scale + costume.rotationCenterY);
                     if (cx < 0)
-                        return false;
-                    if (cy < 0)
                         return false;
                     if (cx >= imageData.width)
                         return false;
+                    var cy = (sprite.scratchY - y) / sprite.scale;
+                    cy = Math.floor(cy / costume.scale + costume.rotationCenterY);
+                    if (cy < 0)
+                        return false;
                     if (cy >= imageData.height)
                         return false;
-                    const alpha = imageData.data[4 * (cy * imageData.width + cx) + 3];
-                    if (alpha !== 0) {
-                    }
-                    return alpha !== 0;
+                    return imageData.data[4 * (cy * imageData.width + cx) + 3] !== 0;
                 }
                 spritesIntersect(spriteA, otherSprites) {
                     const rb = spriteA.rotatedBounds();
@@ -8865,13 +8870,20 @@ var P;
                     const endX = rb.right | 0;
                     const startY = rb.bottom | 0;
                     const endY = rb.top | 0;
+                    const primarySprite = {
+                        sprite: spriteA,
+                        imageData: this.getImageData(spriteA.costumes[spriteA.currentCostumeIndex]),
+                        costume: spriteA.costumes[spriteA.currentCostumeIndex],
+                    };
                     const otherCollidables = otherSprites
                         .filter((s) => {
+                        if (!s.visible)
+                            return false;
                         const ob = s.rotatedBounds();
                         if (rb.bottom >= ob.top || ob.bottom >= rb.top || rb.left >= ob.right || ob.left >= rb.right) {
                             return false;
                         }
-                        return s.visible;
+                        return true;
                     })
                         .map((s) => {
                         return {
@@ -8882,22 +8894,33 @@ var P;
                     });
                     for (var x = startX; x < endX; x++) {
                         for (var y = startY; y < endY; y++) {
-                            if (this.spriteTouchesPoint(spriteA, x, y)) {
+                            var cx = (x - spriteA.scratchX) / spriteA.scale;
+                            cx = Math.floor(cx / primarySprite.costume.scale + primarySprite.costume.rotationCenterX);
+                            if (cx < 0)
+                                continue;
+                            if (cx >= primarySprite.imageData.width)
+                                continue;
+                            var cy = (spriteA.scratchY - y) / spriteA.scale;
+                            cy = Math.floor(cy / primarySprite.costume.scale + primarySprite.costume.rotationCenterY);
+                            if (cy < 0)
+                                continue;
+                            if (cy >= primarySprite.imageData.height)
+                                continue;
+                            if (primarySprite.imageData.data[4 * (cy * primarySprite.imageData.width + cx) + 3] !== 0) {
                                 for (const s of otherCollidables) {
                                     var cx = (x - s.sprite.scratchX) / s.sprite.scale;
-                                    var cy = (s.sprite.scratchY - y) / s.sprite.scale;
                                     cx = Math.floor(cx / s.costume.scale + s.costume.rotationCenterX);
-                                    cy = Math.floor(cy / s.costume.scale + s.costume.rotationCenterY);
                                     if (cx < 0)
-                                        continue;
-                                    if (cy < 0)
                                         continue;
                                     if (cx >= s.imageData.width)
                                         continue;
+                                    var cy = (s.sprite.scratchY - y) / s.sprite.scale;
+                                    cy = Math.floor(cy / s.costume.scale + s.costume.rotationCenterY);
+                                    if (cy < 0)
+                                        continue;
                                     if (cy >= s.imageData.height)
                                         continue;
-                                    const alpha = s.imageData.data[4 * (cy * s.imageData.width + cx) + 3];
-                                    if (alpha !== 0) {
+                                    if (s.imageData.data[4 * (cy * s.imageData.width + cx) + 3] !== 0) {
                                         return true;
                                     }
                                 }
