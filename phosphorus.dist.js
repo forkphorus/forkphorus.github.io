@@ -2690,6 +2690,16 @@ var P;
                 };
                 this.controlsContainer = document.createElement('div');
                 this.controlsContainer.className = 'player-controls';
+                this.controlsContainer.onmousedown = (e) => {
+                    if (e.target !== this.controlsContainer) {
+                        e.stopPropagation();
+                    }
+                };
+                this.controlsContainer.ontouchstart = (e) => {
+                    if (e.target !== this.controlsContainer) {
+                        e.stopPropagation();
+                    }
+                };
                 if (options.enableStop !== false) {
                     var stopButton = document.createElement('span');
                     stopButton.className = 'player-button player-stop';
@@ -9053,7 +9063,6 @@ var P;
             class WebGLSpriteRenderer {
                 constructor() {
                     this.globalScaleMatrix = P.m3.scaling(1, 1);
-                    this.boundFramebuffer = null;
                     this.costumeTextures = new Map();
                     this.canvas = createCanvas();
                     const gl = this.canvas.getContext('webgl', this.getContextOptions());
@@ -9086,7 +9095,7 @@ var P;
                 }
                 getContextOptions() {
                     return {
-                        alpha: true,
+                        alpha: false,
                     };
                 }
                 compileShader(type, source, definitions) {
@@ -9152,24 +9161,14 @@ var P;
                     }
                     return frameBuffer;
                 }
-                bindFramebuffer(buffer) {
-                    if (buffer === this.boundFramebuffer) {
-                        return;
-                    }
-                    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, buffer);
-                    this.boundFramebuffer = buffer;
-                }
                 reset(scale) {
                     this.canvas.width = scale * 480;
                     this.canvas.height = scale * 360;
-                    this.resetFramebuffer(scale);
-                }
-                resetFramebuffer(scale) {
                     this.gl.viewport(0, 0, scale * 480, scale * 360);
                     if (this.globalScaleMatrix[0] !== scale) {
                         this.globalScaleMatrix = P.m3.scaling(scale, scale);
                     }
-                    this.gl.clearColor(0, 0, 0, 0);
+                    this.gl.clearColor(1, 1, 1, 1);
                     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
                 }
                 drawChild(child) {
@@ -9240,7 +9239,7 @@ var P;
                     const matrix = P.m3.projection(this.canvas.width, this.canvas.height);
                     P.m3.multiply(matrix, this.globalScaleMatrix);
                     P.m3.multiply(matrix, P.m3.translation(240, 180));
-                    P.m3.multiply(matrix, P.m3.scaling(1, -1));
+                    P.m3.multiply(matrix, P.m3.scaling(1, 1));
                     P.m3.multiply(matrix, P.m3.translation(-240, -180));
                     P.m3.multiply(matrix, P.m3.scaling(480, 360));
                     shader.uniformMatrix3('u_matrix', matrix);
@@ -9545,6 +9544,7 @@ var P;
             class PenRenderer extends WebGLSpriteRenderer {
                 constructor() {
                     super();
+                    this.dirty = false;
                     this.penCoords = new Float32Array(65536);
                     this.penLines = new Float32Array(32768);
                     this.penColors = new Float32Array(65536);
@@ -9571,6 +9571,7 @@ var P;
                 }
                 drawPen() {
                     const gl = this.gl;
+                    this.dirty = true;
                     gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
                     gl.bufferData(gl.ARRAY_BUFFER, this.penCoords, gl.STREAM_DRAW);
                     gl.vertexAttribPointer(this.shader.getAttribute('vertexData'), 4, gl.FLOAT, false, 0, 0);
@@ -9814,6 +9815,7 @@ var P;
                     }
                 }
                 penStamp(sprite) {
+                    this.dirty = true;
                     if (this.penCoordsIndex) {
                         this.drawPen();
                     }
@@ -9859,7 +9861,7 @@ var P;
       gl_Position = vec4(p, 0.0, 1.0);
       fragColor = colorData;
     }
-  `;
+    `;
             PenRenderer.PEN_FRAGMENT_SHADER = `
     precision mediump float;
     varying vec4 fragColor;
@@ -9876,17 +9878,22 @@ var P;
                     this.shaderOnlyShapeFilters = this.compileVariant(['ONLY_SHAPE_FILTERS']);
                     this.collisionRenderer = new CollisionRenderer();
                     this.penRenderer = new PenRenderer();
-                    this.stageRenderer = new WebGLSpriteRenderer();
                     this.fallbackRenderer = new P.renderer.canvas2d.ProjectRenderer2D(stage);
                     this.reset(1);
                 }
                 drawFrame() {
-                    this.bindFramebuffer(null);
                     if (this.penRenderer.pendingPenOperations()) {
                         this.penRenderer.drawPen();
                     }
                     this.reset(this.zoom);
-                    this.stageRenderer.drawChild(this.stage);
+                    this.drawChild(this.stage);
+                    if (this.penRenderer.dirty) {
+                        this.updatePenTexture();
+                        this.penRenderer.dirty = false;
+                    }
+                    if (this.penTexture) {
+                        this.drawTextureOverlay(this.penTexture);
+                    }
                     for (var i = 0; i < this.stage.children.length; i++) {
                         var child = this.stage.children[i];
                         if (!child.visible) {
@@ -9896,8 +9903,6 @@ var P;
                     }
                 }
                 init(root) {
-                    root.appendChild(this.stageRenderer.canvas);
-                    root.appendChild(this.penRenderer.canvas);
                     root.appendChild(this.canvas);
                 }
                 onStageFiltersChanged() {
@@ -9914,6 +9919,12 @@ var P;
                 penClear() {
                     this.penRenderer.penClear();
                 }
+                updatePenTexture() {
+                    if (this.penTexture) {
+                        this.gl.deleteTexture(this.penTexture);
+                    }
+                    this.penTexture = this.convertToTexture(this.penRenderer.canvas);
+                }
                 resize(scale) {
                     this.zoom = scale;
                 }
@@ -9921,7 +9932,7 @@ var P;
                     if (!filtersAffectShape(sprite.filters)) {
                         return this.fallbackRenderer.spriteTouchesPoint(sprite, x, y);
                     }
-                    this.resetFramebuffer(1);
+                    this.reset(1);
                     this._drawChild(sprite, this.shaderOnlyShapeFilters);
                     const result = new Uint8Array(4);
                     this.gl.readPixels(240 + x | 0, 180 + y | 0, 1, 1, this.gl.RGBA, this.gl.UNSIGNED_BYTE, result);
