@@ -129,7 +129,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity:0.5;"><small>Version cec6b1b, updated 2020-05-16</small></p>
+      <p style="opacity:0.5;"><small>Version ab91dce, updated 2020-05-16</small></p>
     </section>
   </div>
 
@@ -604,6 +604,8 @@
       loadProjectId(initialId);
     } else {
       player.setOptions({ autoplayPolicy: 'always' });
+      urlInput.focus();
+      urlInput.setSelectionRange(urlInput.value.length, urlInput.value.length);
     }
 
   }());
