@@ -6021,7 +6021,7 @@ var P;
                     let row = this.rows[rowIndex];
                     row.setIndex(listIndex);
                     row.setValue(this.list[listIndex]);
-                    row.setY(listIndex * this._rowHeight * this.stage.zoom);
+                    row.setY(listIndex * this._rowHeight);
                     row.setVisible(true);
                 }
                 while (rowIndex < this.rows.length) {
@@ -6039,7 +6039,9 @@ var P;
                 }
                 this.list = this.target.lists[listName];
                 this.target.listWatchers[listName] = this;
-                this.updateLayout();
+                if (this.visible) {
+                    this.updateLayout();
+                }
             }
             getTopLabel() {
                 if (this.target.isStage) {
@@ -6073,6 +6075,9 @@ var P;
             }
             updateLayout() {
                 if (!this.containerEl) {
+                    if (!this.visible) {
+                        return;
+                    }
                     this.createLayout();
                 }
                 this.containerEl.style.display = this.visible ? '' : 'none';
