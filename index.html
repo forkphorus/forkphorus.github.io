@@ -129,7 +129,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity:0.5;"><small>Version c7a9917, updated 2020-05-17</small></p>
+      <p style="opacity:0.5;"><small>Version 0ea429b, updated 2020-05-18</small></p>
     </section>
   </div>
 
@@ -437,21 +437,25 @@
       embedOtherWidth.disabled = embedOtherHeight.disabled = !embedOther.checked;
 
       if (player.getProjectMeta().getId()) {
-        var source = location.protocol + '//' + location.host + location.pathname + 'embed.js?id=' + player.getProjectMeta().getId();
+        var source = location.protocol + '//' + location.host + location.pathname + 'embed.html?id=' + player.getProjectMeta().getId();
         if (embedHideControls.checked) {
           source += '&ui=false';
         } else {
           source += '&auto-start=' + embedAutoStart.checked;
           source += '&light-content=' + embedLightContent.checked;
         }
+        var width = 480;
+        var height = 360;
         if (embedOther.checked) {
-          source += '&w=' + embedOtherWidth.value;
-          source += '&h=' + embedOtherHeight.value;
-        } else {
-          source += '&w=480&h=360';
+          width = +embedOtherWidth.value;
+          height = +embedOtherHeight.value;
         }
-        // We need to break up the closing script tag, otherwise things break.
-        embedCode.value = '<script src="' + source + '"></scrip' + 't>';
+        if (!embedHideControls.checked) {
+          // Space for controls and player border
+          width += 2;
+          height += 33;
+        }
+        embedCode.value = '<iframe src="' + source + '" width="' + width + '" height="' + height + '" allowfullscreen="true" allowtransparency="true" style="border:none;"></iframe>';
       } else {
         embedCode.value = '';
       }
