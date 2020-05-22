@@ -129,7 +129,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity:0.5;"><small>Version e0db2e1, updated 2020-05-19</small></p>
+      <p style="opacity:0.5;"><small>Version 2f76970, updated 2020-05-22</small></p>
     </section>
   </div>
 
@@ -194,15 +194,6 @@
         throw new Error('Selector returned nothing: ' + selector);
       }
       return el;
-    }
-
-    // Shallowly clones an object (member values are not cloned)
-    function shallowClone(obj) {
-      var result = {};
-      for (var k in obj) {
-        result[k] = obj[k];
-      }
-      return result;
     }
 
     /** i18n */
