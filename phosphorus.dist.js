@@ -4379,7 +4379,8 @@ var P;
                 }
             }
             result += '})';
-            return scopedEval(result);
+            const fn = scopedEval(result);
+            return fn;
         }
         runtime_1.createContinuation = createContinuation;
         function scopedEval(source) {
@@ -6660,6 +6661,7 @@ var P;
                         .filter((i) => i && i.valid);
                     stage.allWatchers.forEach((watcher) => watcher.init());
                     this.compileTargets(targets, stage);
+                    this.projectData = null;
                     return stage;
                 });
             }
@@ -7228,6 +7230,7 @@ var P;
                         const hat = this.blocks[hatId];
                         this.compileHat(hat);
                     }
+                    this.target.sb3data = null;
                 }
             }
             compiler_1.Compiler = Compiler;
