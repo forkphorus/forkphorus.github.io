@@ -439,7 +439,7 @@ var P;
         }
         function decodeAudio(ab) {
             if (!audio.context) {
-                return Promise.reject('No audio context');
+                return Promise.reject(new Error('No audio context'));
             }
             return new Promise((resolve, reject) => {
                 decodeADPCMAudio(ab, function (err1, buffer) {
@@ -1743,9 +1743,6 @@ var P;
                 this.svg = svg;
                 this.maxScale = this.calculateMaxScale();
                 this.currentScale = Math.min(1, this.maxScale);
-                if (VectorCostume.AB_TEST) {
-                    this.canvas = document.createElement('canvas');
-                }
             }
             calculateMaxScale() {
                 if (VectorCostume.MAX_SIZE / this.width < VectorCostume.MAX_SCALE) {
@@ -1759,14 +1756,14 @@ var P;
             render() {
                 const width = Math.floor(Math.max(1, this.width * this.currentScale));
                 const height = Math.floor(Math.max(1, this.height * this.currentScale));
-                if (!this.canvas || !this.ctx) {
-                    const canvas = this.canvas || document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
+                if (!this.canvas) {
+                    const canvas = document.createElement('canvas');
                     canvas.width = width;
                     canvas.height = height;
+                    const ctx = canvas.getContext('2d');
                     if (!ctx) {
                         const fmt = (n) => Math.round(n * 100) / 100;
-                        throw new Error(`cannot get 2d rendering context in initCanvas on Vector "${this.name}" @ ${fmt(this.currentScale)}/${fmt(this.maxScale)} | ${width}x${height} % ${VectorCostume.AB_TEST}`);
+                        throw new Error(`cannot get 2d rendering context in initCanvas on Vector "${this.name}" @ ${fmt(this.currentScale)}/${fmt(this.maxScale)} | ${width}x${height}`);
                     }
                     this.canvas = canvas;
                     this.ctx = ctx;
@@ -1778,6 +1775,9 @@ var P;
                 this.ctx.drawImage(this.svg, 0, 0, width, height);
             }
             requestSize(costumeScale) {
+                if (VectorCostume.DISABLE_RASTERIZE) {
+                    return;
+                }
                 const scale = Math.min(Math.ceil(costumeScale), this.maxScale);
                 if (this.currentScale < scale) {
                     this.currentScale = scale;
@@ -1792,7 +1792,10 @@ var P;
                 return this.ctx;
             }
             getImage() {
-                if (this.canvas && this.ctx) {
+                if (VectorCostume.DISABLE_RASTERIZE) {
+                    return this.svg;
+                }
+                if (this.canvas) {
                     return this.canvas;
                 }
                 this.render();
@@ -1801,11 +1804,11 @@ var P;
         }
         VectorCostume.MAX_SCALE = 8;
         VectorCostume.MAX_SIZE = 1024;
-        VectorCostume.AB_TEST = Math.random() > 0.5;
+        VectorCostume.DISABLE_RASTERIZE = false;
         core.VectorCostume = VectorCostume;
         if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
-            console.log('Vector scaling is disabled');
-            VectorCostume.MAX_SCALE = 1;
+            console.log('Vector rasterization is disabled. This may affect performance.');
+            VectorCostume.DISABLE_RASTERIZE = true;
         }
         class Sound {
             constructor(data) {
@@ -2009,7 +2012,7 @@ var P;
                         resolve(fileReader.result);
                     };
                     fileReader.onerror = function (err) {
-                        reject('Could not read object');
+                        reject(new Error('Could not read object as ArrayBuffer'));
                     };
                     fileReader.readAsArrayBuffer(object);
                 });
@@ -2022,7 +2025,7 @@ var P;
                         resolve(fileReader.result);
                     };
                     fileReader.onerror = function (err) {
-                        reject('Could not read object');
+                        reject(new Error('Could not read object as data: URL'));
                     };
                     fileReader.readAsDataURL(object);
                 });
@@ -2035,7 +2038,7 @@ var P;
                         resolve(fileReader.result);
                     };
                     fileReader.onerror = function (err) {
-                        reject('Could not read object');
+                        reject(new Error('Could not read object as text'));
                     };
                     fileReader.readAsText(object);
                 });
@@ -2080,6 +2083,10 @@ var P;
         }
         io.AbstractTask = AbstractTask;
         class Retry extends AbstractTask {
+            constructor() {
+                super(...arguments);
+                this.aborted = false;
+            }
             try(handle) {
                 return new Promise((resolve, reject) => {
                     handle()
@@ -2172,11 +2179,11 @@ var P;
                         this.updateProgress(e);
                     });
                     xhr.addEventListener('error', (err) => {
-                        reject(`Error while downloading ${this.url} (error) (${xhr.status}/${xhr.statusText}/${this.aborted}/${xhr.readyState})`);
+                        reject(new Error(`Error while downloading ${this.url} (error) (${xhr.status}/${xhr.statusText}/${this.aborted}/${xhr.readyState})`));
                     });
                     xhr.addEventListener('abort', (err) => {
                         this.aborted = true;
-                        reject(`Error while downloading ${this.url} (abort) (${xhr.status}/${xhr.statusText}/${xhr.readyState})`);
+                        reject(new Error(`Error while downloading ${this.url} (abort) (${xhr.status}/${xhr.statusText}/${xhr.readyState})`));
                     });
                     xhr.open('GET', this.url);
                     xhr.responseType = this.responseType;
@@ -2221,7 +2228,7 @@ var P;
                         resolve(image);
                     };
                     image.onerror = (err) => {
-                        reject('Failed to load image: ' + image.src);
+                        reject(new Error('Failed to load image: ' + image.src));
                     };
                     image.crossOrigin = 'anonymous';
                     setTimeout(() => {
@@ -6516,7 +6523,7 @@ var P;
                             resolve(image);
                         };
                         image.onerror = (e) => {
-                            reject('Failed to load SVG: ' + path);
+                            reject(new Error('Failed to load SVG: ' + path));
                         };
                         image.src = 'data:image/svg+xml,' + encodeURIComponent(new XMLSerializer().serializeToString(svg));
                     });
@@ -6727,7 +6734,7 @@ var P;
                             resolve(image);
                         };
                         image.onerror = (error) => {
-                            reject('Failed to load image: ' + path + '.' + format);
+                            reject(new Error('Failed to load image: ' + path + '.' + format));
                         };
                         image.src = 'data:image/' + format + ';base64,' + imageData;
                     });
