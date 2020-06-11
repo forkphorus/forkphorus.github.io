@@ -1806,8 +1806,8 @@ var P;
                 return this.canvas;
             }
         }
-        VectorCostume.MAX_SCALE = 8;
-        VectorCostume.MAX_SIZE = 1024;
+        VectorCostume.MAX_SCALE = 16;
+        VectorCostume.MAX_SIZE = 2048;
         VectorCostume.DISABLE_RASTERIZE = false;
         core.VectorCostume = VectorCostume;
         if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
