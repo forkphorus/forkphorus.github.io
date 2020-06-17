@@ -131,7 +131,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity:0.5;"><small>Version bbc36b4, updated 2020-06-16</small></p>
+      <p style="opacity:0.5;"><small>Version 625c84b, updated 2020-06-16</small></p>
     </section>
   </div>
 
@@ -255,7 +255,7 @@
       var url = urlInput.value;
       var pid = player.hasProjectMeta() ? player.getProjectMeta().getId() : -1;
       var id = url.match(/\d+/g) || [''];
-      id = id[0];
+      id = id[0].replace(/^0+/, '');
       urlInput.value = url = PROJECT_PREFIX + id;
       clearTimeout(timeout);
       if (pid !== id) {
