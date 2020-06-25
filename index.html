@@ -119,6 +119,10 @@
           <td class="name" title="Controls whether the renderer tries to make images look smoother."><label for="settings-image-smoothing">Image Smoothing</label></td>
           <td class="value"><input id="settings-image-smoothing" type="checkbox" autocomplete="off"></td>
         </tr>
+        <tr>
+          <td class="name" title="Prevents sprites from moving offscreen."><label for="settings-sprite-fencing">Sprite Fencing</label></td>
+          <td class="value"><input id="settings-sprite-fencing" type="checkbox" autocomplete="off"></td>
+        </tr>
       </table>
       <p>Changes are applied automatically.</p>
     </div>
@@ -131,7 +135,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity:0.5;"><small>Version 61927a0, updated 2020-06-25</small></p>
+      <p style="opacity:0.5;"><small>Version 3704de9, updated 2020-06-25</small></p>
     </section>
   </div>
 
@@ -586,6 +590,7 @@
     var settingFps = querySelector('#settings-fps');
     var settingUsername = querySelector('#settings-username');
     var settingImageSmoothing = querySelector('#settings-image-smoothing');
+    var settingSpriteFencing = querySelector('#settings-sprite-fencing');
 
     settingFps.value = player.options.fps;
     settingFps.addEventListener('input', (e) => {
@@ -600,6 +605,10 @@
     settingImageSmoothing.checked = player.options.imageSmoothing;
     settingImageSmoothing.addEventListener('change', (e) => {
       player.setOptions({ imageSmoothing: settingImageSmoothing.checked });
+    });
+    settingSpriteFencing.checked = player.options.spriteFencing;
+    settingSpriteFencing.addEventListener('change', (e) => {
+      player.setOptions({ spriteFencing: settingSpriteFencing.checked });
     });
 
     if (initialId) {
