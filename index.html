@@ -34,7 +34,7 @@
 
     <div class="area" id="title-area">
       <h1 class="title">forkphorus</h1>
-      <p>forkphorus runs Scratch 2 and Scratch 3 projects really fast by compiling them to JavaScript. Try it out by pasting a project ID or URL into the field below, <a class="upload-button"><input id="upload-file-input" type="file" autocomplete="off" accept=".sb2,.sb3">selecting a project file</a>, dropping a file on the page, or <a id="examples">exploring the examples studio</a>.</p>
+      <p>forkphorus runs Scratch 2 and Scratch 3 projects really fast by compiling them to JavaScript. Try it out by pasting a project ID or URL into the field below, <a class="upload-button"><input id="upload-file-input" type="file" autocomplete="off" accept=".sb,.sb2,.sb3">selecting a project file</a>, dropping a file on the page, or <a id="examples">exploring the examples studio</a>.</p>
     </div>
 
     <div id="examples-container" class="area">
@@ -135,7 +135,7 @@
       <p>The source code for forkphorus is available <a href=https://github.com/forkphorus/forkphorus>on GitHub</a>.</p>
 
       <!-- the deploy bot for forkphorus.github.io will replace this next line with the version info -->
-      <p style="opacity:0.5;"><small>Version 53e07db, updated 2020-07-01</small></p>
+      <p style="opacity:0.5;"><small>Version e079afb, updated 2020-07-01</small></p>
     </section>
   </div>
 
@@ -334,7 +334,7 @@
     }
     function loadProjectFile(file) {
       var extension = file.name.split('.').pop();
-      if (!['sb2', 'sb3'].includes(extension)) {
+      if (!['sb', 'sb2', 'sb3'].includes(extension)) {
         return;
       }
       silentChangeHash('#' + file.name);
