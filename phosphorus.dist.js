@@ -7376,10 +7376,10 @@ var P;
                         return;
                     }
                     this.state = this.getNewState();
-                    if (hatCompiler.precompile) {
-                        hatCompiler.precompile(this, hat);
-                    }
                     let script = `{{${this.labelCount++}}}`;
+                    if (hatCompiler.precompile) {
+                        script += hatCompiler.precompile(this, hat);
+                    }
                     script += this.compileStack(startingBlock);
                     if (hatCompiler.postcompile) {
                         script = hatCompiler.postcompile(this, script, hat);
@@ -7390,8 +7390,8 @@ var P;
                     for (let label of Object.keys(parseResult.labels)) {
                         this.target.fns[label] = P.runtime.createContinuation(parsedScript.slice(parseResult.labels[label]));
                     }
-                    const startingFn = this.target.fns[startFn];
-                    const util = new HatUtil(this, hat, startingFn);
+                    const startingFunction = this.target.fns[startFn];
+                    const util = new HatUtil(this, hat, startingFunction);
                     hatCompiler.handle(util);
                     if (P.config.debug) {
                         this.log(`[${this.target.name}] compiled sb3 script "${hat.opcode}"`, script, this.target);
@@ -8581,6 +8581,40 @@ var P;
             util.target.listeners.whenGreenFlag.push(util.startingFunction);
         },
     };
+    let whenGreaterThanLabel = 0;
+    hatLibrary['event_whengreaterthan'] = {
+        precompile(compiler, hat) {
+            const WHENGREATERTHANMENU = compiler.getField(hat, 'WHENGREATERTHANMENU');
+            const VALUE = compiler.compileInput(hat, 'VALUE', 'number');
+            let sensor = '0';
+            switch (WHENGREATERTHANMENU) {
+                case 'TIMER':
+                    sensor = '(runtime.now() - runtime.timerStart) / 1000';
+                    break;
+                case 'LOUDNESS':
+                    compiler.target.stage.initLoudness();
+                    sensor = 'self.microphone.getLoudness()';
+                    break;
+                default:
+                    console.warn('unsupported sensor', WHENGREATERTHANMENU);
+            }
+            whenGreaterThanLabel = compiler.target.fns.length;
+            let source = '';
+            source += 'if (!R.init) { R.init = true; R.state = 0; }\n';
+            source += `if (R.state === 1 && ${sensor} <= ${VALUE}) { R.state = 0; }\n`;
+            source += `if (R.state === 0 && ${sensor} > ${VALUE}) { R.state = 1; save();\n`;
+            return source;
+        },
+        postcompile(compiler, source, hat) {
+            source += '}\n';
+            source += 'if (C.stack.length) { restore(); }\n';
+            source += `forceQueue(${whenGreaterThanLabel});`;
+            return source;
+        },
+        handle(util) {
+            util.target.listeners.whenGreenFlag.push(util.startingFunction);
+        },
+    };
     hatLibrary['event_whenkeypressed'] = {
         handle(util) {
             const KEY_OPTION = util.getField('KEY_OPTION');
@@ -8691,6 +8725,7 @@ var P;
             if (warp) {
                 compiler.state.isWarp = true;
             }
+            return '';
         },
     };
     hatLibrary['speech2text_whenIHearHat'] = {
