@@ -2102,6 +2102,47 @@ var P;
             globalAssetManager = newManager;
         }
         io.setAssetManager = setAssetManager;
+        class Throttler {
+            constructor() {
+                this.maxConcurrentTasks = 20;
+                this.concurrentTasks = 0;
+                this.queue = [];
+            }
+            startNextTask() {
+                if (this.queue.length === 0)
+                    return;
+                if (this.concurrentTasks >= this.maxConcurrentTasks)
+                    return;
+                const fn = this.queue.shift();
+                this.concurrentTasks++;
+                fn();
+            }
+            run(fn) {
+                return new Promise((resolve, reject) => {
+                    const run = () => {
+                        fn()
+                            .then((r) => {
+                            this.concurrentTasks--;
+                            this.startNextTask();
+                            resolve(r);
+                        })
+                            .catch((e) => {
+                            this.concurrentTasks--;
+                            this.startNextTask();
+                            reject(e);
+                        });
+                    };
+                    if (this.concurrentTasks < this.maxConcurrentTasks) {
+                        this.concurrentTasks++;
+                        run();
+                    }
+                    else {
+                        this.queue.push(run);
+                    }
+                });
+            }
+        }
+        const requestThrottler = new Throttler();
         class AbstractTask {
             setLoader(loader) {
                 this.loader = loader;
@@ -2188,6 +2229,9 @@ var P;
                 this.updateLoaderProgress();
             }
             _load() {
+                if (this.aborted) {
+                    return Promise.reject(new Error(`Cannot download ${this.url} -- aborted.`));
+                }
                 return new Promise((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
                     xhr.open('GET', this.url);
@@ -2206,6 +2250,7 @@ var P;
                         this.updateProgress(e);
                     };
                     xhr.onloadend = (e) => {
+                        this.xhr = null;
                         this.complete = true;
                         this.updateProgress(e);
                     };
@@ -2221,7 +2266,7 @@ var P;
             }
             load(type) {
                 this.responseType = type;
-                return this.try(() => this._load());
+                return this.try(() => requestThrottler.run(() => this._load()));
             }
             getRetryWarningDescription() {
                 return `download ${this.url}`;
