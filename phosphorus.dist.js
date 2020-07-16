@@ -1003,8 +1003,8 @@ var P;
                 this.counter = 0;
                 this.cloudHandler = null;
                 this.cloudVariables = [];
-                this.speech2text = null;
                 this.microphone = null;
+                this.tts = null;
                 this.extensions = [];
                 this.useSpriteFencing = false;
                 this.runtime = new P.runtime.Runtime(this);
@@ -1393,16 +1393,16 @@ var P;
             addExtension(extension) {
                 this.extensions.push(extension);
             }
-            initSpeech2Text() {
-                if (!this.speech2text && P.ext.speech2text.isSupported()) {
-                    this.speech2text = new P.ext.speech2text.SpeechToTextExtension(this);
-                    this.addExtension(this.speech2text);
-                }
-            }
-            initLoudness() {
+            initMicrophone() {
                 if (!this.microphone) {
                     this.microphone = new P.ext.microphone.MicrophoneExtension(this);
                     this.addExtension(this.microphone);
+                }
+            }
+            initTextToSpeech() {
+                if (!this.tts) {
+                    this.tts = new P.ext.tts.TextToSpeechExtension(this);
+                    this.addExtension(this.tts);
                 }
             }
             setCloudHandler(cloudHandler) {
@@ -5498,7 +5498,7 @@ var P;
                         return 'S.distanceTo(' + val(e[1]) + ')';
                     }
                     else if (e[0] === 'soundLevel') {
-                        object.stage.initLoudness();
+                        object.stage.initMicrophone();
                         return 'self.microphone.getLoudness()';
                     }
                     else if (e[0] === 'timestamp') {
@@ -7136,6 +7136,19 @@ var P;
                     this.writeLn('}');
                     this.writeLn('restore();');
                 }
+                sleepUntilSettles(source) {
+                    this.writeLn('save();');
+                    this.writeLn('R.resume = false;');
+                    this.writeLn('var localR = R;');
+                    this.writeLn(`${source}`);
+                    this.writeLn('  .then(function() { localR.resume = true; })');
+                    this.writeLn('  .catch(function() { localR.resume = true; });');
+                    const label = this.addLabel();
+                    this.writeLn('if (!R.resume) {');
+                    this.forceQueue(label);
+                    this.writeLn('}');
+                    this.writeLn('restore();');
+                }
                 write(content) {
                     this.content += content;
                 }
@@ -8227,19 +8240,20 @@ var P;
             util.writeLn('S.isDraggable = false;');
         }
     };
-    statementLibrary['speech2text_listenAndWait'] = function (util) {
-        util.stage.initSpeech2Text();
-        util.writeLn('if (self.speech2text) {');
-        util.writeLn('  save();');
-        util.writeLn('  self.speech2text.startListen();');
-        util.writeLn('  R.id = self.speech2text.id();');
-        const label = util.addLabel();
-        util.writeLn('  if (self.speech2text.id() === R.id) {');
-        util.forceQueue(label);
-        util.writeLn('  }');
-        util.writeLn('  self.speech2text.endListen();');
-        util.writeLn('  restore();');
-        util.writeLn('}');
+    statementLibrary['text2speech_setVoice'] = function (util) {
+        const VOICE = util.getInput('VOICE', 'string');
+        util.stage.initTextToSpeech();
+        util.writeLn(`self.tts.setVoice(${VOICE});`);
+    };
+    statementLibrary['text2speech_setLanguage'] = function (util) {
+        const LANGUAGE = util.getInput('LANGUAGE', 'string');
+        util.stage.initTextToSpeech();
+        util.writeLn(`self.tts.setLanguage(${LANGUAGE});`);
+    };
+    statementLibrary['text2speech_speakAndWait'] = function (util) {
+        const WORDS = util.getInput('WORDS', 'string');
+        util.stage.initTextToSpeech();
+        util.sleepUntilSettles(`self.tts.speak(${WORDS})`);
     };
     statementLibrary['videoSensing_videoToggle'] = function (util) {
         const VIDEO_STATE = util.getInput('VIDEO_STATE', 'string');
@@ -8540,11 +8554,11 @@ var P;
         return util.booleanInput(`!!self.keys[getKeyCode3(${KEY_OPTION})]`);
     };
     inputLibrary['sensing_loud'] = function (util) {
-        util.stage.initLoudness();
+        util.stage.initMicrophone();
         return util.booleanInput('(self.microphone.getLoudness() > 10)');
     };
     inputLibrary['sensing_loudness'] = function (util) {
-        util.stage.initLoudness();
+        util.stage.initMicrophone();
         return util.numberInput('self.microphone.getLoudness()');
     };
     inputLibrary['sensing_mousedown'] = function (util) {
@@ -8587,9 +8601,11 @@ var P;
     inputLibrary['sound_volume'] = function (util) {
         return util.numberInput('(S.volume * 100)');
     };
-    inputLibrary['speech2text_getSpeech'] = function (util) {
-        util.stage.initSpeech2Text();
-        return util.stringInput('(self.speech2text ? self.speech2text.speech : "")');
+    inputLibrary['text2speech_menu_voices'] = function (util) {
+        return util.fieldInput('voices');
+    };
+    inputLibrary['text2speech_menu_languages'] = function (util) {
+        return util.fieldInput('languages');
     };
     inputLibrary['translate_menu_languages'] = function (util) {
         return util.fieldInput('languages');
@@ -8649,7 +8665,7 @@ var P;
                     stallUntil = `runtime.timerStart !== R.timerStart || (runtime.now() - runtime.timerStart) / 1000 <= ${VALUE}`;
                     break;
                 case 'LOUDNESS':
-                    compiler.target.stage.initLoudness();
+                    compiler.target.stage.initMicrophone();
                     executeWhen = `self.microphone.getLoudness() > ${VALUE}`;
                     stallUntil = `self.microphone.getLoudness() <= ${VALUE}`;
                     break;
@@ -8797,20 +8813,6 @@ var P;
             return '';
         },
     };
-    hatLibrary['speech2text_whenIHearHat'] = {
-        handle(util) {
-            util.stage.initSpeech2Text();
-            if (util.stage.speech2text) {
-                const PHRASE = util.getInput('PHRASE', 'string');
-                const phraseFunction = `return ${PHRASE}`;
-                util.stage.speech2text.addHat({
-                    target: util.target,
-                    startingFunction: util.startingFunction,
-                    phraseFunction: P.runtime.createContinuation(phraseFunction),
-                });
-            }
-        },
-    };
     watcherLibrary['data_variable'] = {
         init(watcher) {
             const name = watcher.params.VARIABLE;
@@ -8906,7 +8908,7 @@ var P;
     };
     watcherLibrary['sensing_loudness'] = {
         init(watcher) {
-            watcher.stage.initLoudness();
+            watcher.stage.initMicrophone();
         },
         evaluate(watcher) {
             if (watcher.stage.microphone) {
@@ -8931,18 +8933,6 @@ var P;
     watcherLibrary['sound_volume'] = {
         evaluate(watcher) { return watcher.target.volume * 100; },
         getLabel() { return 'volume'; },
-    };
-    watcherLibrary['speech2text_getSpeech'] = {
-        init(watcher) {
-            watcher.stage.initSpeech2Text();
-        },
-        evaluate(watcher) {
-            if (watcher.stage.speech2text) {
-                return watcher.stage.speech2text.speech;
-            }
-            return '';
-        },
-        getLabel(watcher) { return 'Speech to text: speech'; },
     };
 }());
 var P;
@@ -9265,6 +9255,9 @@ var P;
                     .then((mediaStream) => {
                     const source = P.audio.context.createMediaStreamSource(mediaStream);
                     const analyzer = P.audio.context.createAnalyser();
+                    if (!analyzer.getFloatTimeDomainData) {
+                        throw new Error('Missing API getFloatTimeDomainData');
+                    }
                     source.connect(analyzer);
                     microphone = {
                         source: source,
@@ -9346,98 +9339,105 @@ var P;
 (function (P) {
     var ext;
     (function (ext) {
-        var speech2text;
-        (function (speech2text) {
-            var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || window.msSpeechRecognition;
-            let supported = null;
-            function isSupported() {
-                if (supported === null) {
-                    supported = typeof SpeechRecognition !== 'undefined';
-                    if (!supported) {
-                        console.warn('Speech to text is not supported in this browser. (https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition)');
-                    }
-                }
-                return supported;
-            }
-            speech2text.isSupported = isSupported;
-            class SpeechToTextExtension extends P.ext.Extension {
+        var tts;
+        (function (tts) {
+            const femaleVoices = [
+                /Zira/,
+                /female/i,
+            ];
+            const maleVoices = [
+                /David/,
+                /\bmale/i,
+            ];
+            const scratchVoices = {
+                ALTO: { gender: 1, pitch: 1, rate: 1 },
+                TENOR: { gender: 0, pitch: 1.5, rate: 1 },
+                GIANT: { gender: 0, pitch: 0.5, rate: 0.75 },
+                SQUEAK: { gender: 1, pitch: 2, rate: 1.5 },
+                KITTEN: { gender: 1, pitch: 2, rate: 1 },
+            };
+            class TextToSpeechExtension extends P.ext.Extension {
                 constructor(stage) {
                     super(stage);
-                    this.speech = '';
-                    this.listeners = 0;
-                    this.hats = [];
-                    this.initRecognition();
-                    this.initOverlay();
+                    this.language = 'en';
+                    this.voice = 'ALTO';
+                    this.supported = 'speechSynthesis' in window;
+                    if (!this.supported) {
+                        console.warn('TTS extension is not supported in this browser: it requires the speechSynthesis API https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis');
+                    }
                 }
-                initRecognition() {
-                    this.recognition = new SpeechRecognition();
-                    this.recognition.lang = 'en-US';
-                    this.recognition.continuous = true;
-                    this.recognition.onresult = (event) => this.onresult(event);
-                    this.recognition.onerror = (event) => {
-                        console.warn('speech2text error', event);
+                chooseVoice(voice) {
+                    const matchesGender = (voice) => {
+                        if (femaleVoices.some((i) => i.test(voice.name)))
+                            return voiceGender === 1;
+                        if (maleVoices.some((i) => i.test(voice.name)))
+                            return voiceGender === 0;
+                        return voiceGender === 2;
                     };
-                    this.recognition.onend = () => {
-                        console.warn('speech2text disconnected, reconnecting');
-                        this.initRecognition();
-                    };
-                    this.recognition.start();
+                    const voiceGender = scratchVoices[this.voice].gender;
+                    const matchesLanguageCountry = speechSynthesis.getVoices().filter((i) => i.lang.substr(0, 2) === this.language.substr(0, 2));
+                    const matchesLanguageExact = speechSynthesis.getVoices().filter((i) => i.lang === this.language);
+                    let candidates = matchesLanguageExact.filter(matchesGender);
+                    if (candidates.length === 0)
+                        candidates = matchesLanguageCountry.filter(matchesGender);
+                    if (candidates.length === 0)
+                        candidates = matchesLanguageExact;
+                    if (candidates.length === 0)
+                        candidates = matchesLanguageCountry;
+                    if (candidates.length === 0)
+                        candidates = speechSynthesis.getVoices();
+                    const defaultVoice = candidates.find((i) => i.default);
+                    if (defaultVoice)
+                        return defaultVoice;
+                    return candidates[0];
                 }
-                initOverlay() {
-                    if (this.overlayElement) {
-                        throw new Error('initializing overlay twice');
+                setVoice(voice) {
+                    if (!scratchVoices.hasOwnProperty(voice)) {
+                        return;
                     }
-                    const container = document.createElement('div');
-                    container.className = 'speech2text-container';
-                    const indicator = document.createElement('div');
-                    indicator.className = 'speech2text-indicator';
-                    const animation = document.createElement('div');
-                    animation.className = 'speech2text-animation';
-                    container.appendChild(animation);
-                    container.appendChild(indicator);
-                    this.stage.ui.appendChild(container);
-                    this.overlayElement = container;
+                    this.voice = voice;
                 }
-                onresult(event) {
-                    this.lastResultIndex = event.resultIndex;
-                    const lastResult = event.results[event.resultIndex];
-                    const message = lastResult[0];
-                    const transcript = message.transcript.trim();
-                    if (this.listeners !== 0) {
-                        this.speech = transcript;
+                setLanguage(language) {
+                    this.language = language;
+                }
+                speak(text) {
+                    if (!this.supported) {
+                        return Promise.resolve();
                     }
-                    for (const hat of this.hats) {
-                        const target = hat.target;
-                        const phraseFunction = hat.phraseFunction;
-                        const startingFunction = hat.startingFunction;
-                        const value = this.stage.runtime.evaluateExpression(target, phraseFunction);
-                        if (value === transcript) {
-                            this.stage.runtime.startThread(target, startingFunction, true);
-                        }
+                    if (this.voice === 'KITTEN')
+                        text = text.replace(/\w+?\b/g, 'meow');
+                    return new Promise((resolve, reject) => {
+                        const end = () => resolve();
+                        const utterance = new SpeechSynthesisUtterance(text);
+                        const voice = scratchVoices[this.voice];
+                        utterance.lang = this.language;
+                        utterance.voice = this.chooseVoice(voice);
+                        utterance.rate = voice.rate;
+                        utterance.pitch = voice.pitch;
+                        utterance.onerror = end;
+                        utterance.onend = end;
+                        speechSynthesis.speak(utterance);
+                        speechSynthesis.resume();
+                    });
+                }
+                onstart() {
+                    if (this.supported) {
+                        speechSynthesis.resume();
                     }
                 }
-                addHat(hat) {
-                    this.hats.push(hat);
-                }
-                startListen() {
-                    this.listeners++;
-                    this.overlayElement.setAttribute('listening', '');
-                }
-                endListen() {
-                    this.listeners--;
-                    if (this.listeners === 0) {
-                        this.overlayElement.removeAttribute('listening');
+                onpause() {
+                    if (this.supported) {
+                        speechSynthesis.pause();
                     }
                 }
                 destroy() {
-                    this.recognition.abort();
-                }
-                id() {
-                    return this.lastResultIndex;
+                    if (this.supported) {
+                        speechSynthesis.cancel();
+                    }
                 }
             }
-            speech2text.SpeechToTextExtension = SpeechToTextExtension;
-        })(speech2text = ext.speech2text || (ext.speech2text = {}));
+            tts.TextToSpeechExtension = TextToSpeechExtension;
+        })(tts = ext.tts || (ext.tts = {}));
     })(ext = P.ext || (P.ext = {}));
 })(P || (P = {}));
 var P;
