@@ -3852,13 +3852,6 @@ var P;
             return xs === ys;
         };
         var numEqual = function (nx, y) {
-            if (typeof y === 'number' || DIGIT.test(y)) {
-                var ny = +y;
-                return ny === ny && nx === ny;
-            }
-            return false;
-        };
-        var numEqualExperimental = function (nx, y) {
             var ny = +y;
             return ny === ny && nx === ny;
         };
@@ -6993,7 +6986,7 @@ var P;
                     this.flags = 0;
                 }
                 enableFlag(n) {
-                    this.flags &= n;
+                    this.flags |= n;
                 }
                 hasFlag(n) {
                     return this.flags & n;
@@ -8391,12 +8384,12 @@ var P;
         if (!OPERAND1.potentialNumber || !OPERAND2.potentialNumber) {
             return util.booleanInput(`strEqual(${OPERAND1}, ${OPERAND2})`);
         }
-        if (P.config.experimentalOptimizations) {
+        if (!OPERAND1.hasFlag(1) && !OPERAND2.hasFlag(1)) {
             if (OPERAND1.type === 'number') {
-                return util.booleanInput(`numEqualExperimental(${OPERAND1}, ${OPERAND2})`);
+                return util.booleanInput(`numEqual(${OPERAND1}, ${OPERAND2})`);
             }
             if (OPERAND2.type === 'number') {
-                return util.booleanInput(`numEqualExperimental(${OPERAND2}, ${OPERAND1})`);
+                return util.booleanInput(`numEqual(${OPERAND2}, ${OPERAND1})`);
             }
         }
         return util.booleanInput(`equal(${OPERAND1}, ${OPERAND2})`);
