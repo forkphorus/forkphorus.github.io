@@ -1109,10 +1109,14 @@ var P;
                 const key = e.key;
                 switch (key) {
                     case 'Enter': return 13;
-                    case 'ArrowLeft': return 37;
-                    case 'ArrowUp': return 38;
-                    case 'ArrowRight': return 39;
-                    case 'ArrowDown': return 40;
+                    case 'ArrowLeft':
+                    case 'Left': return 37;
+                    case 'ArrowUp':
+                    case 'Up': return 38;
+                    case 'ArrowRight':
+                    case 'Right': return 39;
+                    case 'ArrowDown':
+                    case 'Down': return 40;
                 }
                 if (key.length !== 1) {
                     return -1;
@@ -2151,23 +2155,24 @@ var P;
                 super(...arguments);
                 this.aborted = false;
             }
-            try(handle) {
-                return new Promise((resolve, reject) => {
-                    handle()
-                        .then((response) => resolve(response))
-                        .catch((err) => {
+            async try(handle) {
+                const MAX_ATTEMPST = 4;
+                let lastErr;
+                for (let i = 0; i < MAX_ATTEMPST; i++) {
+                    try {
+                        return await handle();
+                    }
+                    catch (err) {
                         if (this.aborted) {
-                            reject(err);
-                            return;
+                            throw err;
                         }
-                        console.warn(`First attempt to ${this.getRetryWarningDescription()} failed, trying again.`, err);
-                        setTimeout(() => {
-                            handle()
-                                .then((response) => resolve(response))
-                                .catch((err) => reject(err));
-                        }, 2000);
-                    });
-                });
+                        lastErr = err;
+                        const retryIn = 2 ** i * 500 * Math.random() + 50;
+                        console.warn(`Attempt #${i + 1} to ${this.getRetryWarningDescription()} failed, trying again in ${retryIn}ms`, err);
+                        await P.utils.sleep(retryIn);
+                    }
+                }
+                throw lastErr;
             }
             getRetryWarningDescription() {
                 return 'complete task';
@@ -2258,7 +2263,7 @@ var P;
             }
             load(type) {
                 this.responseType = type;
-                return this.try(() => requestThrottler.run(() => this._load()));
+                return requestThrottler.run(() => this.try(() => this._load()));
             }
             getRetryWarningDescription() {
                 return `download ${this.url}`;
@@ -2302,7 +2307,7 @@ var P;
                 });
             }
             load() {
-                return this.try(() => requestThrottler.run(() => this._load()));
+                return requestThrottler.run(() => this.try(() => this._load()));
             }
             getRetryWarningDescription() {
                 return `download image ${this.src}`;
@@ -2826,6 +2831,10 @@ var P;
             });
         }
         utils.settled = settled;
+        function sleep(ms) {
+            return new Promise((resolve) => setTimeout(resolve, ms));
+        }
+        utils.sleep = sleep;
     })(utils = P.utils || (P.utils = {}));
 })(P || (P = {}));
 var P;
