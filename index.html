@@ -144,7 +144,7 @@
 
       <footer>
         <a data-i18n="index.privacy" href="privacy">Privacy Policy</a>
-       - Version 4e327e1 (2020-08-12)</footer>
+       - Version 505e175 (2020-08-12)</footer>
     </section>
 
   </div>
@@ -647,7 +647,7 @@
     });
     advancedLegacy.checked = player.getOptions().projectHost === 'https://projects.scratch.mit.edu/internalapi/project/$id/get/';
     advancedLegacy.addEventListener('click', function(e) {
-      setSearchParam('phost', e.target.checked ? 'legacy' : false);
+      setSearchParam('phost', e.target.checked ? 'legacy' : false, e);
     });
     function setSearchParam(key, value, event) {
       if (!confirm(P.i18n.translate('index.advanced.confirmation'))) {
