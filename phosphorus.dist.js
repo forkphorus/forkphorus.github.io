@@ -927,7 +927,6 @@ var P;
             remove() {
                 if (this.bubbleContainer) {
                     this.stage.ui.removeChild(this.bubbleContainer);
-                    delete this.bubbleContainer;
                 }
                 if (this.node && this.isClone && !this.isStage) {
                     for (const sound of this.activeSounds) {
@@ -4912,7 +4911,7 @@ var P;
                     }
                     object.name = data.objName;
                     object.costumes = costumes;
-                    object.currentCostumeIndex = data.currentCostumeIndex;
+                    object.currentCostumeIndex = Math.floor(data.currentCostumeIndex);
                     sounds.forEach((sound) => sound && object.addSound(sound));
                     if (isStage) {
                     }
