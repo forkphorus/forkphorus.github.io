@@ -130,7 +130,6 @@
       <p>Help test unfinished features. These require a refresh to apply.</b> <a href="https://github.com/forkphorus/forkphorus/wiki/Advanced-Features" target="_blank">Please read this first</a>.</p>
       <div class="advanced">
         <label><input id="advanced-webgl" class="advanced-feature" type="checkbox"> WebGL Renderer</label>
-        <label><input id="advanced-cloud" class="advanced-feature" type="checkbox"> Cloud Variables</label>
         <label><input id="advanced-legacy" class="advanced-feature" type="checkbox"> Legacy Mode</label>
       </div>
     </div>
@@ -144,7 +143,7 @@
 
       <footer>
         <a data-i18n="index.privacy" href="privacy">Privacy Policy</a>
-       - Version 12f5918 (2020-09-03)</footer>
+       - Version a08a59a (2020-09-06)</footer>
     </section>
 
   </div>
@@ -617,36 +616,36 @@
     var settingImageSmoothing = querySelector('#settings-image-smoothing');
     var settingSpriteFencing = querySelector('#settings-sprite-fencing');
 
-    settingFps.value = player.options.fps;
+    function syncOptionValues() {
+      settingFps.value = player.options.fps;
+      settingUsername.value = player.options.username;
+      settingImageSmoothing.checked = player.options.imageSmoothing;
+      settingSpriteFencing.checked = player.options.spriteFencing;
+    }
+
     settingFps.addEventListener('input', (e) => {
       if (settingFps.checkValidity()) {
         player.setOptions({ fps: +settingFps.value });
       }
     });
-    settingUsername.value = player.options.username;
     settingUsername.addEventListener('input', (e) => {
       player.setOptions({ username: settingUsername.value });
     });
-    settingImageSmoothing.checked = player.options.imageSmoothing;
     settingImageSmoothing.addEventListener('change', (e) => {
       player.setOptions({ imageSmoothing: settingImageSmoothing.checked });
     });
-    settingSpriteFencing.checked = player.options.spriteFencing;
     settingSpriteFencing.addEventListener('change', (e) => {
       player.setOptions({ spriteFencing: settingSpriteFencing.checked });
     });
+    syncOptionValues();
+    player.onoptionschange.subscribe(syncOptionValues);
 
     /** Advanced Settings Menu **/
     var advancedWebGL = querySelector('#advanced-webgl');
-    var advancedCloud = querySelector('#advanced-cloud');
     var advancedLegacy = querySelector('#advanced-legacy');
     advancedWebGL.checked = P.config.useWebGL;
     advancedWebGL.addEventListener('click', function(e) {
       setSearchParam('webgl', e.target.checked, e);
-    });
-    advancedCloud.checked = player.getOptions().cloudVariables === 'ws';
-    advancedCloud.addEventListener('click', function(e) {
-      setSearchParam('cloud', e.target.checked ? 'ws' : false, e);
     });
     advancedLegacy.checked = player.getOptions().projectHost === 'https://projects.scratch.mit.edu/internalapi/project/$id/get/';
     advancedLegacy.addEventListener('click', function(e) {
