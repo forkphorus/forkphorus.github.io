@@ -621,7 +621,6 @@ var P;
                     whenGreenFlag: [],
                     whenIReceive: {},
                     whenKeyPressed: [],
-                    whenBackdropChanges: {},
                     whenSceneStarts: {},
                 };
                 this.fns = [];
@@ -4222,6 +4221,7 @@ var P;
                                     base: BASE,
                                     fn: procedure.fn,
                                     calls: CALLS,
+                                    warp: WARP
                                 };
                                 return;
                             }
@@ -4252,9 +4252,6 @@ var P;
         var sceneChange = function () {
             return runtime.trigger('whenSceneStarts', self.getCostumeName());
         };
-        var backdropChange = function () {
-            return runtime.trigger('whenBackdropChanges', self.getCostumeName());
-        };
         var broadcast = function (name) {
             return runtime.trigger('whenIReceive', name);
         };
@@ -4279,6 +4276,7 @@ var P;
                 base: BASE,
                 fn: S.fns[id],
                 calls: CALLS,
+                warp: WARP
             };
         };
         class Runtime {
@@ -4303,6 +4301,7 @@ var P;
                             args: [],
                             stack: [{}],
                         }],
+                    warp: 0
                 };
                 for (let i = 0; i < this.queue.length; i++) {
                     const q = this.queue[i];
@@ -4334,9 +4333,6 @@ var P;
                         break;
                     case 'whenSceneStarts':
                         threads = sprite.listeners.whenSceneStarts[('' + arg).toLowerCase()];
-                        break;
-                    case 'whenBackdropChanges':
-                        threads = sprite.listeners.whenBackdropChanges[('' + arg).toLowerCase()];
                         break;
                     case 'whenIReceive':
                         arg = '' + arg;
@@ -4457,7 +4453,7 @@ var P;
                             STACK = C.stack;
                             R = STACK.pop();
                             queue[THREAD] = undefined;
-                            WARP = 0;
+                            WARP = thread.warp;
                             while (IMMEDIATE) {
                                 const fn = IMMEDIATE;
                                 IMMEDIATE = null;
@@ -7138,19 +7134,7 @@ var P;
                 updateBubble() {
                     this.writeLn('if (S.saying) S.updateBubble()');
                 }
-                wait(seconds) {
-                    this.writeLn('save();');
-                    this.writeLn('R.start = runtime.now();');
-                    this.writeLn(`R.duration = ${seconds}`);
-                    this.writeLn('var first = true;');
-                    const label = this.addLabel();
-                    this.writeLn('if (runtime.now() - R.start < R.duration * 1000 || first) {');
-                    this.writeLn('  var first;');
-                    this.forceQueue(label);
-                    this.writeLn('}');
-                    this.writeLn('restore();');
-                }
-                sleepUntilSettles(source) {
+                waitUntilSettles(source) {
                     this.writeLn('save();');
                     this.writeLn('R.resume = false;');
                     this.writeLn('var localR = R;');
@@ -7162,6 +7146,11 @@ var P;
                     this.forceQueue(label);
                     this.writeLn('}');
                     this.writeLn('restore();');
+                }
+                waitOneTick() {
+                    const label = this.claimNextLabel();
+                    this.forceQueue(label);
+                    this.addLabel(label);
                 }
                 write(content) {
                     this.content += content;
@@ -7798,6 +7787,7 @@ var P;
         const CHANGE = util.getInput('CHANGE', 'number');
         util.writeLn(`S.changeFilter(${EFFECT}, ${CHANGE});`);
         util.visual('visible');
+        util.waitOneTick();
     };
     statementLibrary['looks_changesizeby'] = function (util) {
         const CHANGE = util.getInput('CHANGE', 'any');
@@ -7842,7 +7832,7 @@ var P;
     statementLibrary['looks_nextbackdrop'] = function (util) {
         util.writeLn('self.showNextCostume();');
         util.visual('always');
-        util.writeLn('var threads = backdropChange();');
+        util.writeLn('var threads = sceneChange();');
         util.writeLn('if (threads.indexOf(BASE) !== -1) {return;}');
     };
     statementLibrary['looks_nextcostume'] = function (util) {
@@ -7891,7 +7881,7 @@ var P;
         const BACKDROP = util.getInput('BACKDROP', 'any');
         util.writeLn(`self.setCostume(${BACKDROP});`);
         util.visual('always');
-        util.writeLn('var threads = backdropChange();');
+        util.writeLn('var threads = sceneChange();');
         util.writeLn('if (threads.indexOf(BASE) !== -1) {return;}');
     };
     statementLibrary['looks_switchcostumeto'] = function (util) {
@@ -8197,6 +8187,7 @@ var P;
         const VOLUME = util.getInput('VOLUME', 'number');
         util.writeLn(`S.volume = Math.max(0, Math.min(1, S.volume + ${VOLUME} / 100));`);
         util.writeLn('if (S.node) S.node.gain.value = S.volume;');
+        util.waitOneTick();
     };
     statementLibrary['sound_cleareffects'] = function (util) {
         util.writeLn('S.resetSoundFilters();');
@@ -8233,11 +8224,13 @@ var P;
         const EFFECT = util.sanitizedString(util.getField('EFFECT'));
         const VALUE = util.getInput('VALUE', 'number');
         util.writeLn(`S.setSoundFilter(${EFFECT}, ${VALUE});`);
+        util.waitOneTick();
     };
     statementLibrary['sound_setvolumeto'] = function (util) {
         const VOLUME = util.getInput('VOLUME', 'number');
         util.writeLn(`S.volume = Math.max(0, Math.min(1, ${VOLUME} / 100));`);
         util.writeLn('if (S.node) S.node.gain.value = S.volume;');
+        util.waitOneTick();
     };
     statementLibrary['sound_stopallsounds'] = function (util) {
         if (P.audio.context) {
@@ -8284,7 +8277,7 @@ var P;
     statementLibrary['text2speech_speakAndWait'] = function (util) {
         const WORDS = util.getInput('WORDS', 'string');
         util.stage.initTextToSpeech();
-        util.sleepUntilSettles(`self.tts.speak(${WORDS})`);
+        util.waitUntilSettles(`self.tts.speak(${WORDS})`);
     };
     statementLibrary['videoSensing_videoToggle'] = function (util) {
         const VIDEO_STATE = util.getInput('VIDEO_STATE', 'string');
@@ -8674,10 +8667,10 @@ var P;
     hatLibrary['event_whenbackdropswitchesto'] = {
         handle(util) {
             const BACKDROP = util.getField('BACKDROP').toLowerCase();
-            if (!util.target.listeners.whenBackdropChanges[BACKDROP]) {
-                util.target.listeners.whenBackdropChanges[BACKDROP] = [];
+            if (!util.target.listeners.whenSceneStarts[BACKDROP]) {
+                util.target.listeners.whenSceneStarts[BACKDROP] = [];
             }
-            util.target.listeners.whenBackdropChanges[BACKDROP].push(util.startingFunction);
+            util.target.listeners.whenSceneStarts[BACKDROP].push(util.startingFunction);
         },
     };
     hatLibrary['event_whenbroadcastreceived'] = {
