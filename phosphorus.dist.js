@@ -4026,6 +4026,11 @@ var P;
             if (!list.modified)
                 list.modified = true;
         };
+        var watchedDeleteAllOfList = function (list) {
+            list.length = 0;
+            if (!list.modified)
+                list.modified = true;
+        };
         var watchedInsertInList = function (list, index, value) {
             insertInList(list, index, value);
             if (!list.modified)
@@ -7150,13 +7155,13 @@ var P;
                     this.writeLn('restore();');
                 }
                 waitOneTick() {
-                    this.writeLn('save();\n');
-                    this.writeLn('R.start = runtime.currentMSecs;\n');
+                    this.writeLn('save();');
+                    this.writeLn('R.start = runtime.currentMSecs;');
                     const label = this.addLabel();
-                    this.writeLn('if (runtime.currentMSecs === R.start) {\n');
+                    this.writeLn('if (runtime.currentMSecs === R.start) {');
                     this.forceQueue(label);
-                    this.writeLn('}\n');
-                    this.writeLn('restore();\n');
+                    this.writeLn('}');
+                    this.writeLn('restore();');
                 }
                 write(content) {
                     this.content += content;
@@ -7725,7 +7730,7 @@ var P;
     };
     statementLibrary['data_deletealloflist'] = function (util) {
         const LIST = util.getListReference('LIST');
-        util.writeLn(`${LIST}.length = 0;`);
+        util.writeLn(`watchedDeleteAllOfList(${LIST});`);
     };
     statementLibrary['data_deleteoflist'] = function (util) {
         const LIST = util.getListReference('LIST');
@@ -8146,6 +8151,7 @@ var P;
         util.writeLn('S.penColor.toHSLA();');
         util.writeLn(`S.penColor.x = ${HUE} * 360 / 200;`);
         util.writeLn('S.penColor.y = 100;');
+        util.writeLn('S.penColor.a = 1;');
     };
     statementLibrary['pen_setPenShadeToNumber'] = function (util) {
         const SHADE = util.getInput('SHADE', 'number');
