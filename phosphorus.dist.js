@@ -3945,6 +3945,9 @@ var P;
             const c = parent.clone();
             self.children.splice(self.children.indexOf(parent), 0, c);
             runtime.triggerFor(c, 'whenCloned');
+            if (c.visible) {
+                VISUAL = true;
+            }
         };
         var getVars = function (name) {
             return self.vars[name] !== undefined ? self.vars : S.vars;
@@ -7579,6 +7582,7 @@ var P;
     };
     statementLibrary['control_delete_this_clone'] = function (util) {
         util.writeLn('if (S.isClone) {');
+        util.visual('visible');
         util.writeLn('  S.remove();');
         util.writeLn('  var i = self.children.indexOf(S);');
         util.writeLn('  if (i !== -1) self.children.splice(i, 1);');
@@ -7820,7 +7824,6 @@ var P;
         const CHANGE = util.getInput('CHANGE', 'number');
         util.writeLn(`S.changeFilter(${EFFECT}, ${CHANGE});`);
         util.visual('visible');
-        util.waitOneTick();
     };
     statementLibrary['looks_changesizeby'] = function (util) {
         const CHANGE = util.getInput('CHANGE', 'any');
@@ -8216,6 +8219,7 @@ var P;
         const EFFECT = util.sanitizedString(util.getField('EFFECT'));
         const VALUE = util.getInput('VALUE', 'number');
         util.writeLn(`S.changeSoundFilter(${EFFECT}, ${VALUE});`);
+        util.waitOneTick();
     };
     statementLibrary['sound_changevolumeby'] = function (util) {
         const VOLUME = util.getInput('VOLUME', 'number');
