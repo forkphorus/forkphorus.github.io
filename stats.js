@@ -10,6 +10,10 @@
     return;
   }
 
+  if (navigator.doNotTrack === '1') {
+    return;
+  }
+
   var referrer = null;
   if (document.referrer) {
     try {
