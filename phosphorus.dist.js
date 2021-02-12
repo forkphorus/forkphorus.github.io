@@ -1862,6 +1862,9 @@ var P;
                 }
                 this.source = P.audio.context.createBufferSource();
                 this.source.buffer = this.buffer;
+                this.source.addEventListener('ended', () => {
+                    this.source.ended = true;
+                });
                 this.source.start();
                 return this.source;
             }
@@ -4182,6 +4185,13 @@ var P;
             };
             var applySoundEffects = function (node) {
                 node.playbackRate.value = Math.pow(2, (S.soundFilters.pitch / 10 / 12));
+            };
+            var updateSoundEffectsOnAllSounds = function () {
+                for (const sound of S.activeSounds) {
+                    if (sound.node) {
+                        applySoundEffects(sound.node);
+                    }
+                }
             };
             var playSound = function (sound) {
                 const node = sound.createSourceNode();
@@ -8246,6 +8256,7 @@ var P;
         const EFFECT = util.sanitizedString(util.getField('EFFECT'));
         const VALUE = util.getInput('VALUE', 'number');
         util.writeLn(`S.changeSoundFilter(${EFFECT}, ${VALUE});`);
+        util.writeLn('if (updateSoundEffectsOnAllSounds) updateSoundEffectsOnAllSounds();');
         util.waitOneTick();
     };
     statementLibrary['sound_changevolumeby'] = function (util) {
@@ -8272,11 +8283,9 @@ var P;
             util.writeLn('  save();');
             util.writeLn('  R.sound = playSound(sound);');
             util.writeLn('  S.activeSounds.add(R.sound);');
-            util.writeLn('  R.start = runtime.now();');
-            util.writeLn('  R.duration = sound.duration;');
             util.writeLn('  var first = true;');
             const label = util.addLabel();
-            util.writeLn('  if ((runtime.now() - R.start < R.duration * 1000 || first) && !R.sound.stopped) {');
+            util.writeLn('  if (!first && !R.sound.node.ended) {');
             util.writeLn('    var first;');
             util.forceQueue(label);
             util.writeLn('  }');
@@ -8289,6 +8298,7 @@ var P;
         const EFFECT = util.sanitizedString(util.getField('EFFECT'));
         const VALUE = util.getInput('VALUE', 'number');
         util.writeLn(`S.setSoundFilter(${EFFECT}, ${VALUE});`);
+        util.writeLn('if (updateSoundEffectsOnAllSounds) updateSoundEffectsOnAllSounds();');
         util.waitOneTick();
     };
     statementLibrary['sound_setvolumeto'] = function (util) {
