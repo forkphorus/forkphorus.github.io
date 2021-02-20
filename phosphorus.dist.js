@@ -1860,8 +1860,12 @@ var P;
                 if (this.source) {
                     this.source.disconnect();
                 }
-                this.source = P.audio.context.createBufferSource();
+                const source = P.audio.context.createBufferSource();
+                this.source = source;
                 this.source.buffer = this.buffer;
+                this.source.addEventListener('ended', () => {
+                    source.ended = true;
+                });
                 this.source.start();
                 return this.source;
             }
@@ -8280,12 +8284,8 @@ var P;
             util.writeLn('  save();');
             util.writeLn('  R.sound = playSound(sound);');
             util.writeLn('  S.activeSounds.add(R.sound);');
-            util.writeLn('  R.start = runtime.now();');
-            util.writeLn('  R.duration = sound.duration;');
-            util.writeLn('  var first = true;');
             const label = util.addLabel();
-            util.writeLn('  if ((runtime.now() - R.start < R.duration * 1000 || first) && !R.sound.stopped) {');
-            util.writeLn('    var first;');
+            util.writeLn('  if (!R.sound.node.ended) {');
             util.forceQueue(label);
             util.writeLn('  }');
             util.writeLn('  S.activeSounds.delete(R.sound);');
