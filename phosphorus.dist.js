@@ -9609,14 +9609,20 @@ var P;
                     }
                     if (!this.noEffects) {
                         ctx.globalAlpha = Math.max(0, Math.min(1, 1 - c.filters.ghost / 100));
-                        if (c.filters.brightness === 100) {
+                        if (c.filters.brightness !== 0 && c.filters.color === 0) {
                             workingRenderer.canvas.width = w;
                             workingRenderer.canvas.height = h;
                             workingRenderer.ctx.save();
                             workingRenderer.ctx.translate(0, 0);
                             workingRenderer.ctx.drawImage(image, 0, 0, w, h);
-                            workingRenderer.ctx.globalCompositeOperation = 'source-in';
-                            workingRenderer.ctx.fillStyle = 'white';
+                            workingRenderer.ctx.globalCompositeOperation = 'source-atop';
+                            workingRenderer.ctx.globalAlpha = Math.abs(c.filters.brightness / 100);
+                            if (c.filters.brightness > 0) {
+                                workingRenderer.ctx.fillStyle = 'white';
+                            }
+                            else {
+                                workingRenderer.ctx.fillStyle = 'black';
+                            }
                             workingRenderer.ctx.fillRect(0, 0, w, h);
                             ctx.drawImage(workingRenderer.canvas, x, y);
                             workingRenderer.ctx.restore();
@@ -9624,7 +9630,7 @@ var P;
                         else {
                             const filter = getCSSFilter(c.filters);
                             if (filter !== '') {
-                                ctx.filter = getCSSFilter(c.filters);
+                                ctx.filter = filter;
                             }
                             ctx.drawImage(image, x, y, w, h);
                         }
@@ -9993,7 +9999,7 @@ var P;
                         if (!info) {
                             throw new Error('attribute at index ' + index + ' does not exist');
                         }
-                        this.attributeLocations[info.name] = index;
+                        this.attributeLocations[info.name] = gl.getAttribLocation(program, info.name);
                     }
                 }
                 uniform1f(name, value) {
@@ -10060,7 +10066,7 @@ var P;
                         'ENABLE_PIXELATE',
                     ]);
                     this.gl.enable(this.gl.BLEND);
-                    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+                    this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
                     this.quadBuffer = this.gl.createBuffer();
                     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadBuffer);
                     this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([
@@ -10290,7 +10296,9 @@ var P;
       vec2 texcoord = v_texcoord;
 
       #ifdef ENABLE_MOSAIC
+      if (u_mosaic != 1.0) {
         texcoord = fract(u_mosaic * v_texcoord);
+      }
       #endif
 
       #ifdef ENABLE_PIXELATE
@@ -10366,6 +10374,8 @@ var P;
           color = vec4(0.0, 0.0, 0.0, 0.0);
         }
       #endif
+
+      color.rgb *= color.a;
 
       gl_FragColor = color;
     }
