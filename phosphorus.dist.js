@@ -9613,6 +9613,7 @@ var P;
                             workingRenderer.canvas.width = w;
                             workingRenderer.canvas.height = h;
                             workingRenderer.ctx.save();
+                            workingRenderer.ctx.imageSmoothingEnabled = false;
                             workingRenderer.ctx.translate(0, 0);
                             workingRenderer.ctx.drawImage(image, 0, 0, w, h);
                             workingRenderer.ctx.globalCompositeOperation = 'source-atop';
@@ -10728,6 +10729,10 @@ var P;
                     this.drawChild(sprite);
                 }
                 penClear() {
+                    this.dirty = true;
+                    this.penCoordsIndex = 0;
+                    this.penLinesIndex = 0;
+                    this.penColorsIndex = 0;
                     this.gl.clearColor(0, 0, 0, 0);
                     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
                 }
