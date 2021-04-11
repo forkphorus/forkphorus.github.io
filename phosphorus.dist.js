@@ -9962,6 +9962,32 @@ var P;
         m3.projection = projection;
     })(m3 = P.m3 || (P.m3 = {}));
 })(P || (P = {}));
+/*!
+Parts of the WebGL renderer are based on https://github.com/Mittagskogel/Sulfurous
+License:
+
+The MIT License (MIT)
+Copyright (c) 2013-2014 Nathan Dinsmore
+Copyright (c) 2016 Mittagskogel
+Copyright (c) 2017-2020 FRALEX
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
 var P;
 (function (P) {
     var renderer;
@@ -10670,7 +10696,7 @@ var P;
                     if (this.buffersCanFit(12 * circleRes)) {
                         this.drawPendingOperations();
                     }
-                    for (var i = 0; i < circleRes; i++) {
+                    for (var i = 1; i < circleRes; i++) {
                         this.penCoords[this.penCoordsIndex] = x;
                         this.penCoordsIndex++;
                         this.penCoords[this.penCoordsIndex] = y;
@@ -10682,6 +10708,18 @@ var P;
                         this.penLines[this.penLinesIndex] = 0;
                         this.penLinesIndex++;
                         this.penLines[this.penLinesIndex] = 0;
+                        this.penLinesIndex++;
+                        this.penCoords[this.penCoordsIndex] = x;
+                        this.penCoordsIndex++;
+                        this.penCoords[this.penCoordsIndex] = y;
+                        this.penCoordsIndex++;
+                        this.penCoords[this.penCoordsIndex] = x + 1;
+                        this.penCoordsIndex++;
+                        this.penCoords[this.penCoordsIndex] = y + 1;
+                        this.penCoordsIndex++;
+                        this.penLines[this.penLinesIndex] = Math.PI / 2 + (i - 1) / circleRes * 2 * Math.PI;
+                        this.penLinesIndex++;
+                        this.penLines[this.penLinesIndex] = size / 2;
                         this.penLinesIndex++;
                         this.penCoords[this.penCoordsIndex] = x;
                         this.penCoordsIndex++;
@@ -10695,19 +10733,43 @@ var P;
                         this.penLinesIndex++;
                         this.penLines[this.penLinesIndex] = size / 2;
                         this.penLinesIndex++;
-                        this.penCoords[this.penCoordsIndex] = x;
-                        this.penCoordsIndex++;
-                        this.penCoords[this.penCoordsIndex] = y;
-                        this.penCoordsIndex++;
-                        this.penCoords[this.penCoordsIndex] = x + 1;
-                        this.penCoordsIndex++;
-                        this.penCoords[this.penCoordsIndex] = y + 1;
-                        this.penCoordsIndex++;
-                        this.penLines[this.penLinesIndex] = Math.PI / 2 + (i + 1) / circleRes * 2 * Math.PI;
-                        this.penLinesIndex++;
-                        this.penLines[this.penLinesIndex] = size / 2;
-                        this.penLinesIndex++;
                     }
+                    this.penCoords[this.penCoordsIndex] = x;
+                    this.penCoordsIndex++;
+                    this.penCoords[this.penCoordsIndex] = y;
+                    this.penCoordsIndex++;
+                    this.penCoords[this.penCoordsIndex] = x;
+                    this.penCoordsIndex++;
+                    this.penCoords[this.penCoordsIndex] = x;
+                    this.penCoordsIndex++;
+                    this.penLines[this.penLinesIndex] = 0;
+                    this.penLinesIndex++;
+                    this.penLines[this.penLinesIndex] = 0;
+                    this.penLinesIndex++;
+                    this.penCoords[this.penCoordsIndex] = x;
+                    this.penCoordsIndex++;
+                    this.penCoords[this.penCoordsIndex] = y;
+                    this.penCoordsIndex++;
+                    this.penCoords[this.penCoordsIndex] = x + 1;
+                    this.penCoordsIndex++;
+                    this.penCoords[this.penCoordsIndex] = y + 1;
+                    this.penCoordsIndex++;
+                    this.penLines[this.penLinesIndex] = Math.PI / 2 + (circleRes - 1) / circleRes * 2 * Math.PI;
+                    this.penLinesIndex++;
+                    this.penLines[this.penLinesIndex] = size / 2;
+                    this.penLinesIndex++;
+                    this.penCoords[this.penCoordsIndex] = x;
+                    this.penCoordsIndex++;
+                    this.penCoords[this.penCoordsIndex] = y;
+                    this.penCoordsIndex++;
+                    this.penCoords[this.penCoordsIndex] = x + 1;
+                    this.penCoordsIndex++;
+                    this.penCoords[this.penCoordsIndex] = y + 1;
+                    this.penCoordsIndex++;
+                    this.penLines[this.penLinesIndex] = Math.PI / 2;
+                    this.penLinesIndex++;
+                    this.penLines[this.penLinesIndex] = size / 2;
+                    this.penLinesIndex++;
                     const [r, g, b, a] = color.toParts();
                     for (var i = 0; i < circleRes * 3; i++) {
                         this.penColors[this.penColorsIndex] = r;
