@@ -128,6 +128,8 @@ P.suite = (function() {
     P.suite.stage = stage;
 
     return new Promise((_resolve, _reject) => {
+      console.log('Starting test', metadata.path);
+
       /**
        * @param {Partial<TestResult>} result
        */
@@ -169,12 +171,50 @@ P.suite = (function() {
         });
       };
 
+      let plannedTests = null;
+      let passedTests = 0;
+      /**
+       * Handle scratch-vm-style test hook.
+       * Example messages:
+       * "plan 1"
+       * "pass name"
+       * "fail name"
+       * "end"
+       * @param {string} message 
+       */
+      const testVm = (message) => {
+        const [method] = message.split(' ');
+        const args = message.substring(method.length).trim();
+        if (method === 'plan') {
+          if (plannedTests !== null) {
+            testFail('already planned test');
+            return;
+          }
+          plannedTests = +args;
+        } else if (method === 'pass') {
+          console.log('Pass', args);
+          passedTests++;
+        } else if (method === 'fail') {
+          testFail(args);
+        } else if (method === 'end') {
+          if (plannedTests !== null) {
+            if (plannedTests === passedTests) {
+              testOkay(`Passed ${passedTests}`);
+            } else {
+              testFail(`Expected ${plannedTests} but only got ${passedTests}`);
+            }
+          } else {
+            testOkay('WARN: not did not plan');
+          }
+        }
+      };
+
       /**
        * testFail() when the project encounters an error
        */
       const handleError = (e) => {
         const message = stringifyError(e);
-        stage.runtime.testFail('ERROR: ' + message);
+        testFail('ERROR: ' + message);
       };
 
       /**
@@ -186,6 +226,7 @@ P.suite = (function() {
 
       stage.runtime.testFail = testFail;
       stage.runtime.testOkay = testOkay;
+      stage.runtime.testVm = testVm;
       stage.runtime.handleError = handleError;
 
       const timeoutId = setTimeout(timeout, metadata.timeout);
@@ -279,7 +320,7 @@ P.suite = (function() {
     const failingTests = totalTests - passingTests;
     const percentPassing = Math.round((passingTests / totalTests) * 100);
     listEl.appendChild(createElement('li', {
-      textContent: `Of ${totalTests} test, ${passingTests} passed and ${failingTests} failed. (${percentPassing}% passing)`,
+      textContent: `Of ${totalTests} tests, ${passingTests} passed and ${failingTests} failed. (${percentPassing}% passing)`,
     }));
     if (failingTests > 0) {
       listEl.classList.add('suite-failed');
@@ -379,11 +420,11 @@ P.suite = (function() {
   compiler.statementLibrary['procedures_call'] = function procedureCall(util) {
     switch (util.block.mutation.proccode) {
       case 'FAIL':
-        util.writeLn('if (runtime.testFail("no message")) { return; }');
+        util.writeLn('if (runtime.testFail("")) { return; }');
         break;
 
       case 'FAIL %s':
-        util.writeLn('if (runtime.testFail(' + getArguments(util) + ' || "no message")) { return; }');
+        util.writeLn('if (runtime.testFail(' + getArguments(util) + ' || "")) { return; }');
         break;
 
       case 'OKAY':
@@ -422,7 +463,7 @@ P.suite = (function() {
     switch (proccode) {
       case 'OK':
       case 'OKAY':
-        source = 'runtime.testOkay("no message"); return;\n';
+        source = 'runtime.testOkay(""); return;\n';
         break;
 
       case 'OK %s':
@@ -433,7 +474,7 @@ P.suite = (function() {
         break;
 
       case 'FAIL':
-        source = 'if (runtime.testFail("no message")) { return; }\n';
+        source = 'if (runtime.testFail("")) { return; }\n';
         break;
 
       case 'FAIL %s':
@@ -457,3 +498,14 @@ P.suite = (function() {
     }
   };
 }(P.sb2.compiler));
+
+/**
+ * scratch-vm-style hook
+ */
+(function() {
+  const originalSay = P.core.Base.prototype.say;
+  P.core.Base.prototype.say = function (message, thinking) {
+    this.stage.runtime.testVm(message);
+    return originalSay.call(this, message, thinking);
+  };
+}());
