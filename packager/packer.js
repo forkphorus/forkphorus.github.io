@@ -246,7 +246,7 @@ window.Packer = (function() {
      * @param {string} id
      */
     async _getProjectTypeById(id) {
-      const res = await SBDL.fetchProjectDataWithToken(id);
+      const res = await fetch('https://projects.scratch.mit.edu/' + id);
       if (res.status !== 200) {
         if (res.status === 404) {
           throw new Error('Project does not exist: ' + id);
