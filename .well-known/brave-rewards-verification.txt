@@ -1,0 +1,4 @@
+This is a Brave Rewards publisher verification file.
+
+Domain: forkphorus.github.io
+Token: e97748e82ab98e15e93068a9ed37523e7d06f54e3de830750948ba953b934d20
