@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Forkphorus is a JavaScript compiler for Scratch 3, 2, and 1 projects.">
   <link rel="canonical" href="https://forkphorus.github.io/" />
-  <title>forkphorus - phosphorus for Scratch 3<\/title><meta name="google-site-verification" content="Re7zb-nm555twSGK216lVPDW-7v7ob1vQHYGQT3fBhE" /><meta name="monetization" content="$ilp.uphold.com/gF2KGUfLzqAR">
+  <title>forkphorus - phosphorus for Scratch 3</title><meta name="google-site-verification" content="Re7zb-nm555twSGK216lVPDW-7v7ob1vQHYGQT3fBhE" /><meta name="monetization" content="$ilp.uphold.com/gF2KGUfLzqAR">
   <script>
     // Apply local dark mode preference very early to avoid a flash of white
     (function() {
@@ -165,7 +165,7 @@
 
       <footer>
         <a data-i18n="index.privacy" href="privacy">Privacy Policy</a>
-       - Version 2c8b44d (2022-08-27)</footer>
+       - Version 4c14e49 (2022-08-06)</footer>
     </section>
 
   </div>
@@ -684,8 +684,8 @@
       setSearchParam('phost', e.target.checked ? 'legacy' : false, e);
     });
     function setSearchParam(key, value, event) {
-      event.preventDefault();
       if (!confirm(P.i18n.translate('index.advanced.confirmation'))) {
+        event.preventDefault();
         return;
       }
       // if value === false, remove the key
