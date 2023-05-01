@@ -3062,9 +3062,9 @@ var P;
                 if (!this.startedLoading) {
                     this.startedLoading = true;
                     const request = new P.io.Request([
-                        'https://trampoline.turbowarp.org/proxy/projects/$id'.replace('$id', this.id),
-                        'https://trampoline.turbowarp.xyz/proxy/projects/$id'.replace('$id', this.id),
-                        'https://t.unsandboxed.org/proxy/projects/$id'.replace('$id', this.id),
+                        'https://trampoline.turbowarp.org/api/projects/$id'.replace('$id', this.id),
+                        'https://trampoline.turbowarp.xyz/api/projects/$id'.replace('$id', this.id),
+                        'https://t.unsandboxed.org/api/projects/$id'.replace('$id', this.id),
                     ]);
                     request
                         .setMaxAttempts(1)
@@ -10000,6 +10000,10 @@ var P;
                     this.penContext.fill();
                 }
                 penLine(color, size, x1, y1, x2, y2) {
+                    if (x1 === x2 && y1 === y2) {
+                        this.penDot(color, size, x1, y1);
+                        return;
+                    }
                     this.penModified = true;
                     this.penContext.lineCap = 'round';
                     if (this.penZoom === 1) {
@@ -10641,6 +10645,10 @@ var P;
                     this.zoom = scale;
                 }
                 penLine(color, size, x1, y1, x2, y2) {
+                    if (x1 == x2 && y1 == y2) {
+                        this.penDot(color, size, x1, y1);
+                        return;
+                    }
                     const circleRes = this.getCircleResolution(size);
                     if (this.buffersCanFit(24 * (circleRes + 1))) {
                         this.drawPendingOperations();
@@ -10922,7 +10930,7 @@ var P;
                     const globalScaleMatrixBackup = this.globalScaleMatrix;
                     this.globalScaleMatrix = P.m3.scaling(1, 1);
                     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-                    this.useShader(this.shaders.allEffects);
+                    this.useShader(this.shaders.shapeEffects);
                     this.drawChild(sprite);
                     this.globalScaleMatrix = globalScaleMatrixBackup;
                     const result = new Uint8Array(4);
