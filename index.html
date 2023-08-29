@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Forkphorus is a JavaScript compiler for Scratch 3, 2, and 1 projects.">
   <link rel="canonical" href="https://forkphorus.github.io/" />
-  <title>forkphorus - phosphorus for Scratch 3</title><meta name="google-site-verification" content="Re7zb-nm555twSGK216lVPDW-7v7ob1vQHYGQT3fBhE" /><meta name="monetization" content="$ilp.uphold.com/gF2KGUfLzqAR">
+  <title>forkphorus - phosphorus for Scratch 3</title>
   <script>
     // Apply local dark mode preference very early to avoid a flash of white
     (function() {
@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="phosphorus.css">
   <link rel="stylesheet" href="studioview/studioview.css">
   <link rel="stylesheet" href="index.css">
-</head>
+<meta name="google-site-verification" content="Re7zb-nm555twSGK216lVPDW-7v7ob1vQHYGQT3fBhE" /></head>
 
 <body>
 
@@ -144,7 +144,6 @@
       <p>Help test unfinished features. These require a refresh to apply.</b> <a href="https://github.com/forkphorus/forkphorus/wiki/Advanced-Features" target="_blank">Please read this first</a>.</p>
       <div class="advanced">
         <label><input id="advanced-webgl" class="advanced-feature" type="checkbox"> WebGL Renderer</label>
-        <label><input id="advanced-legacy" class="advanced-feature" type="checkbox"> Legacy Mode</label>
       </div>
     </div>
 
@@ -160,7 +159,7 @@
 
       <footer>
         <a data-i18n="index.privacy" href="privacy">Privacy Policy</a>
-       - Version a8960e7 (2023-04-30)</footer>
+       - Version bb717af (2023-08-29)</footer>
     </section>
 
   </div>
@@ -669,14 +668,9 @@
 
     /** Advanced Settings Menu **/
     var advancedWebGL = querySelector('#advanced-webgl');
-    var advancedLegacy = querySelector('#advanced-legacy');
     advancedWebGL.checked = P.config.useWebGL;
     advancedWebGL.addEventListener('click', function(e) {
       setSearchParam('webgl', e.target.checked, e);
-    });
-    advancedLegacy.checked = player.getOptions().projectHost === 'https://projects.scratch.mit.edu/internalapi/project/$id/get/';
-    advancedLegacy.addEventListener('click', function(e) {
-      setSearchParam('phost', e.target.checked ? 'legacy' : false, e);
     });
     function setSearchParam(key, value, event) {
       event.preventDefault();
