@@ -78,6 +78,7 @@ var P;
         config.experimentalOptimizations = false;
         config.scale = window.devicePixelRatio || 1;
         config.PROJECT_API = 'https://projects.scratch.mit.edu/$id';
+        config.allowRasterizeVectors = navigator.userAgent.includes('Firefox');
     })(config = P.config || (P.config = {}));
 })(P || (P = {}));
 var P;
@@ -1887,10 +1888,10 @@ var P;
                 const scale = Math.min(Math.ceil(costumeScale), this.maxScale);
                 if (this.currentScale < scale) {
                     this.currentScale = scale;
-                    if (VectorCostume.DISABLE_RASTERIZE) {
+                    if (P.config.useWebGL) {
                         this.resizeSvg();
                     }
-                    else {
+                    else if (P.config.allowRasterizeVectors) {
                         this.render();
                     }
                 }
@@ -1903,7 +1904,7 @@ var P;
                 return this.ctx;
             }
             getImage() {
-                if (VectorCostume.DISABLE_RASTERIZE) {
+                if (!P.config.allowRasterizeVectors) {
                     return this.svg;
                 }
                 if (this.canvas) {
@@ -1915,12 +1916,7 @@ var P;
         }
         VectorCostume.MAX_SCALE = 16;
         VectorCostume.MAX_SIZE = 2048;
-        VectorCostume.DISABLE_RASTERIZE = false;
         core.VectorCostume = VectorCostume;
-        if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
-            console.log('Vector rasterization is disabled. This may affect performance.');
-            VectorCostume.DISABLE_RASTERIZE = true;
-        }
         class Sound {
             constructor(data) {
                 this.source = null;
@@ -2939,6 +2935,15 @@ var P;
         }
         utils.parseColor = parseColor;
         ;
+        function escapeXML(unsafe) {
+            return unsafe
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+        utils.escapeXML = escapeXML;
     })(utils = P.utils || (P.utils = {}));
 })(P || (P = {}));
 var P;
@@ -3881,7 +3886,7 @@ var P;
                 const el = document.createElement('div');
                 const errorLink = this.createBugReportLink(error);
                 this.generatedErrorLink = errorLink;
-                const attributes = 'href="' + errorLink + '" target="_blank" ref="noopener"';
+                const attributes = 'href="' + P.utils.escapeXML(errorLink) + '" target="_blank" ref="noopener"';
                 el.innerHTML = P.i18n.translate('player.errorhandler.error').replace('$attrs', attributes);
                 return el;
             }
@@ -3934,7 +3939,7 @@ var P;
                 this.errorEl = el;
             }
         }
-        ErrorHandler.BUG_REPORT_LINK = 'https://github.com/forkphorus/forkphorus/issues/new?template=bug_report.md&labels=bug&title=$title&body=$body&';
+        ErrorHandler.BUG_REPORT_LINK = 'https://forkphorus.github.io/bug_report.html?title=$title&body=$body';
         player_1.ErrorHandler = ErrorHandler;
         class ProgressBar {
             constructor(player, options = {}) {
