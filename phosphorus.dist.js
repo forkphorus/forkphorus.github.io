@@ -65,9 +65,6 @@ Redistribution and use in source and binary forms, with or without modification,
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-if (!('Promise' in window)) {
-    throw new Error('Browser does not support Promise');
-}
 var P;
 (function (P) {
     var config;
@@ -2037,7 +2034,7 @@ var P;
     var i18n;
     (function (i18n) {
         'use strict';
-        const SUPPORTED_LANGUAGES = ['en', 'es'];
+        const SUPPORTED_LANGUAGES = ['en'];
         const DEFAULT_LANGUAGE = 'en';
         function getLanguage() {
             let language = navigator.language;
@@ -3687,7 +3684,7 @@ var P;
                             const projectDataText = await projectJSON.async('text');
                             const projectData = JSON.parse(projectDataText);
                             if (this.determineProjectType(projectData) === 'sb3') {
-                                return new P.sb3.SB3FileLoader(buffer);
+                                return new P.sb3.Scratch3Loader(buffer);
                             }
                         }
                         catch (e) {
@@ -3731,7 +3728,7 @@ var P;
                         loader = new P.sb2.SB2FileLoader(buffer);
                         break;
                     case 'sb3':
-                        loader = new P.sb3.SB3FileLoader(buffer);
+                        loader = new P.sb3.Scratch3Loader(buffer);
                         break;
                     default: throw new Error('Unknown type: ' + type);
                 }
@@ -7004,10 +7001,80 @@ var P;
             svg.appendChild(style);
             return svg;
         }
-        class BaseSB3Loader extends P.io.Loader {
-            constructor() {
-                super(...arguments);
+        class Scratch3Loader extends P.io.Loader {
+            constructor(input) {
+                super();
+                this.zip = null;
                 this.needsMusic = false;
+                this.input = input;
+            }
+            async getAsText(path) {
+                if (this.zip) {
+                    try {
+                        const file = this.zip.file(path);
+                        if (!file) {
+                            throw new Error(`${path} does not exist in zip as text`);
+                        }
+                        const task = this.addTask(new P.io.Manual());
+                        const text = await file.async('text');
+                        task.markComplete();
+                        return text;
+                    }
+                    catch (e) {
+                        console.warn(e);
+                    }
+                }
+                return this.addTask(new P.io.Request(sb3.ASSETS_API.replace('$md5ext', path))).load('text');
+            }
+            async getAsArrayBuffer(path) {
+                if (this.zip) {
+                    try {
+                        const file = this.zip.file(path);
+                        if (!file) {
+                            throw new Error(`${path} does not exist in zip as text`);
+                        }
+                        const task = this.addTask(new P.io.Manual());
+                        const buffer = await file.async('arraybuffer');
+                        task.markComplete();
+                        return buffer;
+                    }
+                    catch (e) {
+                        console.warn(e);
+                    }
+                }
+                return this.addTask(new P.io.Request(sb3.ASSETS_API.replace('$md5ext', path))).load('arraybuffer');
+            }
+            async getAsImage(path, format) {
+                if (this.zip) {
+                    try {
+                        const file = this.zip.file(path);
+                        if (!file) {
+                            throw new Error(`${path} does not exist in zip as text`);
+                        }
+                        const task = this.addTask(new P.io.Manual());
+                        const base64 = await file.async('base64');
+                        const image = await new Promise((resolve, reject) => {
+                            const image = new Image();
+                            image.onload = () => {
+                                image.onload = null;
+                                image.onerror = null;
+                                task.markComplete();
+                                resolve(image);
+                            };
+                            image.onerror = (error) => {
+                                image.onload = null;
+                                image.onerror = null;
+                                reject(new Error('Failed to load image: ' + path + '.' + format));
+                            };
+                            image.src = 'data:image/' + format + ';base64,' + base64;
+                        });
+                        return image;
+                    }
+                    catch (e) {
+                        console.warn(e);
+                    }
+                }
+                return this.addTask(new P.io.Img(sb3.ASSETS_API.replace('$md5ext', path))).load();
             }
             getSVG(path, costumeOptions) {
                 return this.getAsText(path)
@@ -7077,41 +7144,45 @@ var P;
             }
             loadTarget(data) {
                 const target = new (data.isStage ? Scratch3Stage : Scratch3Sprite)(null);
-                for (const id of Object.keys(data.variables)) {
-                    const variable = data.variables[id];
-                    const name = variable[0];
-                    const value = variable[1];
-                    if (variable.length > 2) {
-                        const cloud = variable[2];
-                        if (cloud) {
-                            if (data.isStage) {
-                                target.cloudVariables.push(name);
-                            }
-                            else {
-                                console.warn('Cloud variable found on a non-stage object. Skipping.');
+                if (Object.prototype.hasOwnProperty.call(data, 'variables')) {
+                    for (const id of Object.keys(data.variables)) {
+                        const variable = data.variables[id];
+                        const name = variable[0];
+                        const value = variable[1];
+                        if (variable.length > 2) {
+                            const cloud = variable[2];
+                            if (cloud) {
+                                if (data.isStage) {
+                                    target.cloudVariables.push(name);
+                                }
+                                else {
+                                    console.warn('Cloud variable found on a non-stage object. Skipping.');
+                                }
                             }
                         }
+                        target.vars[name] = value;
+                        target.varIds[id] = name;
                     }
-                    target.vars[name] = value;
-                    target.varIds[id] = name;
                 }
-                for (const id of Object.keys(data.lists)) {
-                    const list = data.lists[id];
-                    const name = list[0];
-                    const content = list[1];
-                    if (target.lists[name]) {
-                        continue;
+                if (Object.prototype.hasOwnProperty.call(data, 'lists')) {
+                    for (const id of Object.keys(data.lists)) {
+                        const list = data.lists[id];
+                        const name = list[0];
+                        const content = list[1];
+                        if (target.lists[name]) {
+                            continue;
+                        }
+                        const scratchList = createList();
+                        for (var i = 0; i < content.length; i++) {
+                            scratchList[i] = content[i];
+                        }
+                        target.lists[name] = scratchList;
+                        target.listIds[id] = name;
                     }
-                    const scratchList = createList();
-                    for (var i = 0; i < content.length; i++) {
-                        scratchList[i] = content[i];
-                    }
-                    target.lists[name] = scratchList;
-                    target.listIds[id] = name;
                 }
                 target.name = data.name;
                 target.currentCostumeIndex = data.currentCostume;
-                if ('volume' in data) {
+                if (Object.prototype.hasOwnProperty.call(data, 'volume')) {
                     target.volume = data.volume / 100;
                 }
                 target.sb3data = data;
@@ -7170,16 +7241,26 @@ var P;
                     console.timeEnd('Scratch 3 compile');
                 }
             }
-            async load() {
-                if (!this.projectData) {
-                    throw new Error('Project data is missing or invalid');
+            async loadProjectData() {
+                if (!this.input) {
+                    throw new Error('Input missing');
                 }
-                if (!Array.isArray(this.projectData.targets)) {
+                if (this.input instanceof ArrayBuffer) {
+                    this.zip = await JSZip.loadAsync(this.input);
+                    this.input = null;
+                    const text = await this.getAsText('project.json');
+                    return JSON.parse(text);
+                }
+                return this.input;
+            }
+            async load() {
+                const projectData = await this.loadProjectData();
+                if (!Array.isArray(projectData.targets)) {
                     throw new Error('Invalid project data: missing targets');
                 }
                 await this.loadRequiredAssets();
                 this.resetTasks();
-                const targets = await Promise.all(this.projectData.targets
+                const targets = await Promise.all(projectData.targets
                     .sort((a, b) => a.layerOrder - b.layerOrder)
                     .map((data) => this.loadTarget(data)));
                 if (this.aborted) {
@@ -7192,8 +7273,8 @@ var P;
                 const sprites = targets.filter((i) => i.isSprite);
                 sprites.forEach((sprite) => sprite.stage = stage);
                 stage.children = sprites;
-                if (this.projectData.monitors) {
-                    stage.allWatchers = this.projectData.monitors
+                if (projectData.monitors) {
+                    stage.allWatchers = projectData.monitors
                         .map((data) => this.loadWatcher(data, stage))
                         .filter((i) => i && i.valid);
                     stage.allWatchers.forEach((watcher) => watcher.init());
@@ -7202,113 +7283,7 @@ var P;
                 if (this.needsMusic) {
                     await this.loadSoundbank();
                 }
-                this.projectData = null;
                 return stage;
-            }
-        }
-        sb3.BaseSB3Loader = BaseSB3Loader;
-        class SB3FileLoader extends BaseSB3Loader {
-            constructor(buffer) {
-                super();
-                this.buffer = buffer;
-            }
-            getAsText(path) {
-                const task = this.addTask(new P.io.Manual());
-                const file = this.zip.file(path);
-                if (!file) {
-                    throw new Error('cannot find file as text: ' + path);
-                }
-                return file.async('text')
-                    .then((response) => {
-                    task.markComplete();
-                    return response;
-                });
-            }
-            getAsArrayBuffer(path) {
-                const task = this.addTask(new P.io.Manual());
-                const file = this.zip.file(path);
-                if (!file) {
-                    throw new Error('cannot find file as arraybuffer: ' + path);
-                }
-                return file.async('arraybuffer')
-                    .then((response) => {
-                    task.markComplete();
-                    return response;
-                });
-            }
-            getAsBase64(path) {
-                const task = this.addTask(new P.io.Manual());
-                const file = this.zip.file(path);
-                if (!file) {
-                    throw new Error('cannot find file as base64: ' + path);
-                }
-                return file.async('base64')
-                    .then((response) => {
-                    task.markComplete();
-                    return response;
-                });
-            }
-            getAsImage(path, format) {
-                const task = this.addTask(new P.io.Manual());
-                return this.getAsBase64(path)
-                    .then((imageData) => {
-                    return new Promise((resolve, reject) => {
-                        const image = new Image();
-                        image.onload = () => {
-                            task.markComplete();
-                            resolve(image);
-                        };
-                        image.onerror = (error) => {
-                            reject(new Error('Failed to load image: ' + path + '.' + format));
-                        };
-                        image.src = 'data:image/' + format + ';base64,' + imageData;
-                    });
-                });
-            }
-            load() {
-                return JSZip.loadAsync(this.buffer)
-                    .then((data) => {
-                    this.zip = data;
-                    return this.getAsText('project.json');
-                })
-                    .then((project) => {
-                    this.projectData = JSON.parse(project);
-                })
-                    .then(() => super.load());
-            }
-        }
-        sb3.SB3FileLoader = SB3FileLoader;
-        class Scratch3Loader extends BaseSB3Loader {
-            constructor(idOrData) {
-                super();
-                if (typeof idOrData === 'object') {
-                    this.projectData = idOrData;
-                    this.projectId = null;
-                }
-                else {
-                    this.projectId = idOrData;
-                }
-            }
-            getAsText(path) {
-                return this.addTask(new P.io.Request(sb3.ASSETS_API.replace('$md5ext', path))).load('text');
-            }
-            getAsArrayBuffer(path) {
-                return this.addTask(new P.io.Request(sb3.ASSETS_API.replace('$md5ext', path))).load('arraybuffer');
-            }
-            getAsImage(path) {
-                return this.addTask(new P.io.Img(sb3.ASSETS_API.replace('$md5ext', path))).load();
-            }
-            load() {
-                if (this.projectId) {
-                    return this.addTask(new P.io.Request(P.config.PROJECT_API.replace('$id', '' + this.projectId))).load('json')
-                        .then((data) => {
-                        this.projectData = data;
-                        return super.load();
-                    });
-                }
-                else {
-                    return super.load();
-                }
             }
         }
         sb3.Scratch3Loader = Scratch3Loader;
