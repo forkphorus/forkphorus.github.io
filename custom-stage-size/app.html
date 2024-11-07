@@ -118,6 +118,18 @@
       e.preventDefault();
     }, { passive: false });
 
+    player.setOptions(Common.playerOptions);
+
+    player.setOptions({
+      fullscreenMode: 'window',
+      autoplayPolicy: 'if-audio-playable',
+    });
+
+    // do not focus the stage when embedded
+    if (!window.parent || window.parent === window) {
+      player.setOptions({ focusOnLoad: false });
+    }
+
     Common.parseSearch(function(key, value) {
       switch (key) {
         case 'full-screen':
@@ -130,19 +142,12 @@
         case 'controls':
           player.addControls({ enableFullscreen: false });
           break;
+        case 'autostart':
+          player.setOptions({
+            autoplayPolicy: 'always'
+          });
+          break;
       }
-    });
-
-    // do not focus the stage when embedded
-    if (!window.parent || window.parent === window) {
-      player.setOptions({ focusOnLoad: false });
-    }
-
-    player.setOptions(Common.playerOptions);
-
-    player.setOptions({
-      fullscreenMode: 'window',
-      autoplayPolicy: 'if-audio-playable',
     });
 
     player.loadProjectById(Common.projectId)
