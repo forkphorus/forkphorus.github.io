@@ -159,7 +159,7 @@
 
       <footer>
         <a data-i18n="index.privacy" href="privacy">Privacy Policy</a>
-       - Version 95fde98 (2025-05-16)</footer>
+       - Version a3dd4d8 (2026-02-21)</footer>
     </section>
 
   </div>
@@ -267,10 +267,13 @@
     console.log('Sprites are exposed in `player.stage.children`');
 
     var initialId = Common.projectId || '';
-    player.setOptions(Common.playerOptions);
     player.setOptions({
+      // Player default is if-audio-playable which doesn't work
+      // well on the website by default. Set this before applying
+      // options from Common since it can be overridden by parameter.
       autoplayPolicy: 'never'
     });
+    player.setOptions(Common.playerOptions);
 
     playerArea.style.height = projectArea.style.height = 'auto';
     var titleAreaHeight = titleArea.offsetHeight;
