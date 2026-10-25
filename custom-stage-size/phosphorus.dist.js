@@ -1973,6 +1973,73 @@ var P;
 })(P || (P = {}));
 var P;
 (function (P) {
+    var broken;
+    (function (broken) {
+        const DEFAULT_VECTOR_SVG = '<?xml version="1.0"?>\n<svg width="128" height="128" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg">\n <g>\n  <rect fill="#CCC" height="128" width="128"/>\n  <text fill="black" y="107" x="35.5" font-size="128">?</text>\n </g>\n</svg>\n';
+        const DEFAULT_BITMAP_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAAAAADmVT4XAAADZElEQVR42u3a70vbQBgH8O/7vOibvsmbFUEEWUGGUhQ25nDuhSKIUFDxlYi0SAd94atRmFiHCH2x4W8iiNtwowXRgd1QipJYY3N/1F4kTQ6XLKS9yyHcvWyO8MnT5y53Tw5EcIMESIAESIAESIAESIAEPFVAq/6l8G4oAQCp4aniwbUVJ6BVzafwqKXy1VZMgNb+CHzbyK4ZB+Bi0nnk0VyhsDiSoAmvvnMHmGUVAF6UG+0ffsxRhsRHky/AyCsAUpumX0wAAIs6T4CxDADDtcdZsal6gjmdH8AsAEC6+s8Fa48SFExeAKusAEju+V367AmUCi9ANQ0AU3pwcOw2cMEH0FwAAKz5X228pRLR5AI4TgIAtIDL24oLUE94AB6W7LsH/cONN14Ilh44AOqD9s2LQR1KHiB9zgGgOSGeuA3ocPrME1Q4ANaceyePAzrcjHmAZYs9IBeW4/fzHiAwTCwAgTle9ACZK44ALDT9e6x7gL4aT0BQCHb4AqgA5/1TTOMLoJ7vZSMM0H/GHnCeDnu+CrU8vGYPcN5FADBYD0vCaYPDy+i0p337GSMsS1Z4vA3t9QgAZTt0IuIxFRPSKicAQHlvhk3FXF5GhBByMa8qo/sBO6BarwuYbYrYnFKDYEvE7phKgcxvEQBqnvhgiQCUOgoAO4C3JOS3L/hv23UXxVldBECfcueAqpAa0WGy/QeULREAY6aTXRFDgBuA13+ElOncAERMAGaA9hBQD4gQQHsIRE1AZoD2xrgQS5nOZyHgFKmWDSIG4GRAVidiAE4GRB6AzAB2AKIPQFaA5myHA5AV4ESNugZhC7BLR50lIBPAebrzBGQCKAFQNSIMcDvRTQIwAHxNApM3RBygGK0uyhxwOwGsPAgEnPWj5ycRCNiJtBHlAChGKQVwANzPY+CXSMDNWISiLA9AfRA5IhJQ68UnoQAt+AtOPIBKhJosF8B6UM0yLkAxQk2WCyDX9SiUh1gkQAIkoCuAvjGuquMbuijAtwG7MPL8yBICOHSPk3W8Ne8KcEUdmBi6FADYos+QleIH0N/ogOxd7AD6uAS6WRU8WcBdlgZMG/EnYUlwEpLLoQ4PjzGbiA5UsRMRsbQ+5ziDJmYqJuR6NaMomdXuFuZyPSABEiABEiABEiABEiAc8Bd6VyvCEKGqcQAAAABJRU5ErkJggg==';
+        let _cachedBitmap = null;
+        let _cachedVector = null;
+        let _cachedSound = null;
+        function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onerror = () => reject(new Error('Failed to load fallback image'));
+                img.onload = () => resolve(img);
+                img.src = src;
+            });
+        }
+        function loadDefaultBitmap() {
+            if (!_cachedBitmap) {
+                _cachedBitmap = loadImage(DEFAULT_BITMAP_URL);
+            }
+            return _cachedBitmap;
+        }
+        function loadDefaultVector() {
+            if (!_cachedVector) {
+                _cachedVector = loadImage(`data:image/svg+xml,${encodeURIComponent(DEFAULT_VECTOR_SVG)}`);
+            }
+            return _cachedVector;
+        }
+        function loadDefaultSound() {
+            if (!P.audio.context) {
+                throw new Error('No audio context');
+            }
+            if (!_cachedSound) {
+                _cachedSound = P.audio.context.createBuffer(1, 1, 44000);
+            }
+            return _cachedSound;
+        }
+        async function createDefaultBitmap(name) {
+            const image = await loadDefaultBitmap();
+            return new P.core.BitmapCostume(image, {
+                name,
+                bitmapResolution: 1,
+                rotationCenterX: 64,
+                rotationCenterY: 64,
+            });
+        }
+        broken.createDefaultBitmap = createDefaultBitmap;
+        async function createDefaultVector(name) {
+            const svg = await loadDefaultVector();
+            return new P.core.VectorCostume(svg, {
+                name,
+                bitmapResolution: 1,
+                rotationCenterX: 64,
+                rotationCenterY: 64,
+            });
+        }
+        broken.createDefaultVector = createDefaultVector;
+        function createDefaultSound(name) {
+            return new P.core.Sound({
+                name,
+                buffer: loadDefaultSound(),
+            });
+        }
+        broken.createDefaultSound = createDefaultSound;
+    })(broken = P.broken || (P.broken = {}));
+})(P || (P = {}));
+var P;
+(function (P) {
     var fonts;
     (function (fonts_1) {
         const fontFamilyCache = {};
@@ -2090,6 +2157,8 @@ var P;
         i18n.addTranslations = addTranslations;
         addTranslations('en', {
             'player.controls.turboIndicator': 'Turbo Mode',
+            'player.controls.missingAssets': '$count assets failed to load',
+            'player.controls.missingAssets.one': '1 asset failed to load',
             'player.controls.fullscreen.title': 'Click to fullscreen player, Shift+click to just maximize.',
             'player.controls.flag.title': 'Shift+click to enable turbo mode.',
             'player.controls.flag.title.enabled': 'Turbo mode is enabled. Shift+click to disable turbo mode.',
@@ -2111,43 +2180,77 @@ var P;
         }
         let readers;
         (function (readers) {
-            function toArrayBuffer(object) {
-                return new Promise((resolve, reject) => {
-                    const fileReader = new FileReader();
-                    fileReader.onloadend = function () {
-                        resolve(fileReader.result);
-                    };
-                    fileReader.onerror = function (err) {
-                        reject(new Error('Could not read object as ArrayBuffer'));
-                    };
-                    fileReader.readAsArrayBuffer(object);
-                });
+            function toArrayBuffer(blob) {
+                if (typeof FileReader === 'function') {
+                    return new Promise((resolve, reject) => {
+                        const fileReader = new FileReader();
+                        fileReader.onloadend = () => {
+                            resolve(fileReader.result);
+                        };
+                        fileReader.onerror = () => {
+                            reject(new Error(`Could not read as ArrayBuffer: ${fileReader.error}`));
+                        };
+                        fileReader.readAsArrayBuffer(blob);
+                    });
+                }
+                else if (typeof blob.arrayBuffer === 'function') {
+                    return blob.arrayBuffer();
+                }
+                else {
+                    return Promise.reject(new Error('Browser does not support read as ArrayBuffer'));
+                }
             }
             readers.toArrayBuffer = toArrayBuffer;
-            function toDataURL(object) {
-                return new Promise((resolve, reject) => {
-                    const fileReader = new FileReader();
-                    fileReader.onloadend = function () {
-                        resolve(fileReader.result);
-                    };
-                    fileReader.onerror = function (err) {
-                        reject(new Error('Could not read object as data: URL'));
-                    };
-                    fileReader.readAsDataURL(object);
-                });
+            function toDataURL(blob) {
+                if (typeof FileReader === 'function') {
+                    return new Promise((resolve, reject) => {
+                        const fileReader = new FileReader();
+                        fileReader.onloadend = () => {
+                            resolve(fileReader.result);
+                        };
+                        fileReader.onerror = () => {
+                            reject(new Error(`Could not read as data: URL ${fileReader.error}`));
+                        };
+                        fileReader.readAsDataURL(blob);
+                    });
+                }
+                else if (typeof blob.arrayBuffer === 'function') {
+                    return blob.arrayBuffer()
+                        .then(arrayBuffer => {
+                        const bytes = new Uint8Array(arrayBuffer);
+                        let str = '';
+                        for (let i = 0; i < bytes.length; i++) {
+                            str += String.fromCharCode(bytes[i]);
+                        }
+                        const base64 = btoa(str);
+                        const dataUrl = `data:${blob.type};base64,${base64}`;
+                        return dataUrl;
+                    });
+                }
+                else {
+                    return Promise.reject(new Error('Browser does not support read as data: URL'));
+                }
             }
             readers.toDataURL = toDataURL;
-            function toText(object) {
-                return new Promise((resolve, reject) => {
-                    const fileReader = new FileReader();
-                    fileReader.onloadend = function () {
-                        resolve(fileReader.result);
-                    };
-                    fileReader.onerror = function (err) {
-                        reject(new Error('Could not read object as text'));
-                    };
-                    fileReader.readAsText(object);
-                });
+            function toText(blob) {
+                if (typeof FileReader === 'function') {
+                    return new Promise((resolve, reject) => {
+                        const fileReader = new FileReader();
+                        fileReader.onloadend = () => {
+                            resolve(fileReader.result);
+                        };
+                        fileReader.onerror = () => {
+                            reject(new Error(`Could not read as text: ${fileReader.error}`));
+                        };
+                        fileReader.readAsText(blob);
+                    });
+                }
+                else if (typeof blob.text === 'function') {
+                    return blob.text();
+                }
+                else {
+                    return Promise.reject(new Error('Browser does not support read as text'));
+                }
             }
             readers.toText = toText;
         })(readers = io.readers || (io.readers = {}));
@@ -2470,6 +2573,12 @@ var P;
                 this._tasks.length = 0;
             }
             onprogress(progress) {
+            }
+            missingAsset(error) {
+                console.error('An asset unrecoverably failed to load; using fallback instead', error);
+                this.onmissingasset(error);
+            }
+            onmissingasset(error) {
             }
         }
         io.Loader = Loader;
@@ -3065,17 +3174,17 @@ var P;
             load() {
                 if (!this.startedLoading) {
                     this.startedLoading = true;
+                    const buster = '?rudebuster=' + Math.random();
                     const request = new P.io.Request([
-                        'https://trampoline.turbowarp.org/api/projects/$id'.replace('$id', this.id),
-                        'https://trampoline.turbowarp.xyz/api/projects/$id'.replace('$id', this.id),
-                        'https://t.unsandboxed.org/api/projects/$id'.replace('$id', this.id),
+                        'https://trampoline.turbowarp.org/api/projects/$id'.replace('$id', this.id) + buster,
+                        'https://trampoline.turbowarp.xyz/api/projects/$id'.replace('$id', this.id) + buster,
                     ]);
                     request
                         .setMaxAttempts(1)
                         .ignoreErrors()
                         .load('json')
                         .then((data) => {
-                        if (request.getStatus() === 404) {
+                        if (request.getStatus() === 404 || request.getStatus() === 400) {
                             this.unshared = true;
                         }
                         else {
@@ -3139,6 +3248,8 @@ var P;
                 this.currentLoader = null;
                 this.fullscreenEnabled = false;
                 this.clickToPlayContainer = null;
+                this.missingAssetLabel = null;
+                this.missingAssetCount = 0;
                 this.root = document.createElement('div');
                 this.root.className = 'player-root';
                 this.playerContainer = document.createElement('div');
@@ -3270,6 +3381,11 @@ var P;
                     flagButton.addEventListener('touchstart', startTouchFlag);
                     flagButton.addEventListener('touchstart', preventDefault);
                 }
+                const missingAssetLabel = document.createElement('span');
+                missingAssetLabel.className = 'player-label player-missing-assets';
+                this.controlsContainer.appendChild(missingAssetLabel);
+                this.missingAssetLabel = missingAssetLabel;
+                this.updateMissingAssetLabel();
                 if (options.enableTurbo !== false) {
                     var turboText = document.createElement('span');
                     turboText.innerText = P.i18n.translate('player.controls.turboIndicator');
@@ -3301,6 +3417,22 @@ var P;
                     }
                 });
                 this.root.insertBefore(this.controlsContainer, this.root.firstChild);
+            }
+            updateMissingAssetLabel() {
+                if (!this.missingAssetLabel) {
+                    return;
+                }
+                if (this.missingAssetCount > 1) {
+                    this.missingAssetLabel.style.display = 'block';
+                    this.missingAssetLabel.textContent = P.i18n.translate('player.controls.missingAssets').replace('$count', this.missingAssetCount.toString());
+                }
+                else if (this.missingAssetCount === 1) {
+                    this.missingAssetLabel.style.display = 'block';
+                    this.missingAssetLabel.textContent = P.i18n.translate('player.controls.missingAssets.one');
+                }
+                else {
+                    this.missingAssetLabel.style.display = 'none';
+                }
             }
             applyOptionsToStage() {
                 if (this.stage.runtime.framerate !== this.options.fps) {
@@ -3595,6 +3727,8 @@ var P;
                 this.onstartload.emit();
                 const loaderId = new LoaderIdentifier();
                 this.currentLoader = loaderId;
+                this.missingAssetCount = 0;
+                this.updateMissingAssetLabel();
                 return { loaderId };
             }
             determineProjectType(data) {
@@ -3662,6 +3796,12 @@ var P;
                 loader.onprogress = (progress) => {
                     if (loaderId.isActive()) {
                         this.onprogress.emit(progress);
+                    }
+                };
+                loader.onmissingasset = () => {
+                    if (loaderId.isActive()) {
+                        this.missingAssetCount++;
+                        this.updateMissingAssetLabel();
                     }
                 };
                 const stage = await loader.load();
@@ -4066,7 +4206,7 @@ var P;
             return '' + nx > ys;
         };
         var equal = function (x, y) {
-            if ((typeof x === 'number' || typeof x === 'boolean' || DIGIT.test(x)) && (typeof y === 'number' || typeof x === 'boolean' || DIGIT.test(y))) {
+            if ((typeof x === 'number' || typeof x === 'boolean' || DIGIT.test(x)) && (typeof y === 'number' || typeof y === 'boolean' || DIGIT.test(y))) {
                 var nx = +x;
                 var ny = +y;
                 if (nx === nx && ny === ny) {
@@ -4405,7 +4545,7 @@ var P;
                     if (span.top >= key || span.top === 128)
                         break;
                 }
-                return playSpan(span, key, duration);
+                return playSpan(span, Math.max(0, Math.min(127, +key || 0)), duration);
             };
             var playSpan = function (span, key, duration) {
                 const node = P.audio.playSpan(span, key, duration, S.getAudioNode());
@@ -4860,6 +5000,44 @@ var P;
 })(P || (P = {}));
 var P;
 (function (P) {
+    var sandbox;
+    (function (sandbox) {
+        let iframe = null;
+        sandbox.getSandbox = () => {
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.className = 'forkphorus-sandbox';
+                iframe.sandbox = 'allow-same-origin';
+                iframe.style.position = 'absolute';
+                iframe.style.top = '-10000px';
+                iframe.style.left = '-10000px';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.opacity = '0';
+                iframe.style.visibility = 'hidden';
+                iframe.style.pointerEvents = 'none';
+                iframe.tabIndex = -1;
+                iframe.ariaHidden = 'true';
+                document.body.appendChild(iframe);
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(`
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <meta charset="utf-8">
+                    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' data:; font-src data:; img-src data:">
+                </head>
+                <body></body>
+            </html>
+            `);
+                iframe.contentDocument.close();
+            }
+            return iframe.contentDocument.body;
+        };
+    })(sandbox = P.sandbox || (P.sandbox = {}));
+})(P || (P = {}));
+var P;
+(function (P) {
     var sb2;
     (function (sb2) {
         const ASSET_URL = 'https://cdn.assets.scratch.mit.edu/internalapi/asset/';
@@ -5282,10 +5460,14 @@ var P;
                         rotationCenterX: data.rotationCenterX,
                         rotationCenterY: data.rotationCenterY,
                     });
+                })
+                    .catch((err) => {
+                    this.missingAsset(err);
+                    return P.broken.createDefaultBitmap(data.costumeName);
                 });
             }
             loadSound(data) {
-                return new Promise((resolve, reject) => {
+                return new Promise((resolve) => {
                     this.loadMD5(data.md5, data.soundID, true)
                         .then((buffer) => {
                         resolve(new P.core.Sound({
@@ -5294,8 +5476,11 @@ var P;
                         }));
                     })
                         .catch((err) => {
+                        this.missingAsset(err);
+                        resolve(P.broken.createDefaultSound(data.soundName));
+                    })
+                        .catch(() => {
                         resolve(null);
-                        console.warn('Could not load sound: ' + err);
                     });
                 });
             }
@@ -5311,23 +5496,22 @@ var P;
                     IN_PLACE: true,
                     USE_PROFILES: { svg: true }
                 });
-                svg.style.visibility = 'hidden';
-                svg.style.position = 'absolute';
-                svg.style.left = '-10000px';
-                svg.style.top = '-10000px';
-                document.body.appendChild(svg);
-                const viewBox = svg.viewBox.baseVal;
-                if (viewBox && (viewBox.x || viewBox.y)) {
-                    svg.width.baseVal.value = viewBox.width - viewBox.x;
-                    svg.height.baseVal.value = viewBox.height - viewBox.y;
-                    viewBox.x = 0;
-                    viewBox.y = 0;
-                    viewBox.width = 0;
-                    viewBox.height = 0;
+                try {
+                    P.sandbox.getSandbox().appendChild(svg);
+                    const viewBox = svg.viewBox.baseVal;
+                    if (viewBox && (viewBox.x || viewBox.y)) {
+                        svg.width.baseVal.value = viewBox.width - viewBox.x;
+                        svg.height.baseVal.value = viewBox.height - viewBox.y;
+                        viewBox.x = 0;
+                        viewBox.y = 0;
+                        viewBox.width = 0;
+                        viewBox.height = 0;
+                    }
+                    patchSVG(svg, svg);
                 }
-                patchSVG(svg, svg);
-                document.body.removeChild(svg);
-                svg.style.visibility = svg.style.position = svg.style.left = svg.style.top = '';
+                finally {
+                    doc.appendChild(svg);
+                }
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 if (!ctx) {
@@ -5378,7 +5562,7 @@ var P;
             loadMD5(hash, id, isAudio = false) {
                 const f = isAudio ? (this.zip.file(id + '.wav') || this.zip.file(id + '.mp3')) : this.zip.file(id + '.gif') || (this.zip.file(id + '.png') || this.zip.file(id + '.jpg') || this.zip.file(id + '.svg'));
                 if (!f) {
-                    throw new Error('cannot find md5: ' + hash + ' (isAudio=' + isAudio + ')');
+                    return Promise.reject(new Error('cannot find md5: ' + hash + ' (isAudio=' + isAudio + ')'));
                 }
                 hash = f.name;
                 if (isAudio) {
@@ -7119,11 +7303,19 @@ var P;
                 };
                 if (data.dataFormat === 'svg') {
                     return this.getSVG(path, costumeOptions)
-                        .then((svg) => new P.core.VectorCostume(svg, costumeOptions));
+                        .then((svg) => new P.core.VectorCostume(svg, costumeOptions))
+                        .catch((err) => {
+                        this.missingAsset(err);
+                        return P.broken.createDefaultVector(data.name);
+                    });
                 }
                 else {
                     return this.getBitmapImage(path, data.dataFormat)
-                        .then((image) => new P.core.BitmapCostume(image, costumeOptions));
+                        .then((image) => new P.core.BitmapCostume(image, costumeOptions))
+                        .catch((err) => {
+                        this.missingAsset(err);
+                        return P.broken.createDefaultBitmap(data.name);
+                    });
                 }
             }
             getAudioBuffer(path) {
@@ -7134,7 +7326,7 @@ var P;
                 });
             }
             loadSound(data) {
-                return new Promise((resolve, reject) => {
+                return new Promise((resolve) => {
                     this.getAudioBuffer(data.md5ext)
                         .then((buffer) => {
                         resolve(new P.core.Sound({
@@ -7143,7 +7335,10 @@ var P;
                         }));
                     })
                         .catch((err) => {
-                        console.warn('Could not load sound: ' + err);
+                        this.missingAsset(err);
+                        resolve(P.broken.createDefaultSound(data.name));
+                    })
+                        .catch(() => {
                         resolve(null);
                     });
                 });
@@ -7573,11 +7768,6 @@ var P;
                         .replace(/\}/g, '\\x7d');
                     return `"${string}"`;
                 }
-                sanitizedComment(content) {
-                    content = content
-                        .replace(/\*\//g, '');
-                    return `/* ${content} */`;
-                }
                 findVariable({ id, name }) {
                     const stage = this.target.stage;
                     if (stage.varIds.hasOwnProperty(id)) {
@@ -7702,9 +7892,6 @@ var P;
                     }
                     const util = new InputUtil(this, inputBlock);
                     let result = compiler(util);
-                    if (P.config.debug) {
-                        result.source = this.sanitizedComment(inputBlock.opcode) + result.source;
-                    }
                     return this.convertInputType(result, type);
                 }
                 getField(block, fieldName) {
@@ -7748,9 +7935,6 @@ var P;
                     while (true) {
                         var opcode = block.opcode;
                         const compiler = this.getStatementCompiler(opcode);
-                        if (P.config.debug) {
-                            script += this.sanitizedComment(block.opcode);
-                        }
                         if (compiler) {
                             const util = new StatementUtil(this, block);
                             compiler(util);

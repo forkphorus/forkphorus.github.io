@@ -63,7 +63,7 @@
 
       <section>
         <h1 data-i18n="index.report">Report a problem</h1>
-        <p>forkphorus is still in development. <a id="bug-link" target="_blank" rel="noopener" href="https://github.com/forkphorus/forkphorus/issues/new">Click here</a> to report a problem with this project. You can also comment problems <a href="https://scratch.mit.edu/projects/366001364/" target="_blank" rel="noopener">here</a> if you don't have a GitHub account.</p>
+        <p>forkphorus is in maintenance mode, but it still receives occasional bug fixes. <a id="bug-link" target="_blank" rel="noopener" href="https://github.com/forkphorus/forkphorus/issues/new">Click here</a> to report a problem with this project. You can also comment problems <a href="https://scratch.mit.edu/projects/366001364/" target="_blank" rel="noopener">here</a> if you don't have a GitHub account.</p>
       </section>
 
       <section class=package>
@@ -159,7 +159,7 @@
 
       <footer>
         <a data-i18n="index.privacy" href="privacy">Privacy Policy</a>
-       - Version 07cf9de (2024-11-07)</footer>
+       - Version 23c6389 (2026-10-25)</footer>
     </section>
 
   </div>
@@ -251,7 +251,7 @@
       }
       err = '' + err;
       var el = document.createElement('div');
-      el.innerHTML = `Alternatively, <a href="https://scratch.mit.edu/projects/366001364/" target="_blank">post a Scratch comment</a> and include: "<span style="font-family: monospace; user-select: all">${err.replace(/<>/g, '')} (${player.getProjectMeta().getId()})</span>"`;
+      el.innerHTML = `Alternatively, <a href="https://scratch.mit.edu/projects/366001364/" target="_blank">post a Scratch comment</a> and include: "<span style="font-family: monospace; user-select: all">${P.utils.escapeXML(err)} (${P.utils.escapeXML(player.getProjectMeta().getId())})</span>"`;
       errorHandler.errorEl.appendChild(el);
       if (errorHandler.generatedErrorLink) {
         bugLink.href = errorHandler.generatedErrorLink;
@@ -267,10 +267,13 @@
     console.log('Sprites are exposed in `player.stage.children`');
 
     var initialId = Common.projectId || '';
-    player.setOptions(Common.playerOptions);
     player.setOptions({
+      // Player default is if-audio-playable which doesn't work
+      // well on the website by default. Set this before applying
+      // options from Common since it can be overridden by parameter.
       autoplayPolicy: 'never'
     });
+    player.setOptions(Common.playerOptions);
 
     playerArea.style.height = projectArea.style.height = 'auto';
     var titleAreaHeight = titleArea.offsetHeight;
