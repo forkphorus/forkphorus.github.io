@@ -155,6 +155,8 @@
       if (meta.getTitle()) {
         document.title = meta.getTitle();
       }
+    }).catch(() => {
+      // non-critical
     });
   }());
 

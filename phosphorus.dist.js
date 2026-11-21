@@ -3080,6 +3080,15 @@ var P;
             }
         }
         player_1.CannotAccessProjectError = CannotAccessProjectError;
+        class TrampolineError extends PlayerError {
+            constructor(id, status) {
+                super(`Error ${status} fetching trampoline metadata for ${id}`);
+                this.id = id;
+                this.status = status;
+                this.name = 'TrampolineError';
+            }
+        }
+        player_1.TrampolineError = TrampolineError;
         class LoaderIdentifier {
             constructor() {
                 this.active = true;
@@ -3166,50 +3175,37 @@ var P;
                 this.title = null;
                 this.token = null;
                 this.unshared = false;
-                this.loadCallbacks = [];
-                this.startedLoading = false;
+                this.loadPromise = null;
             }
             load() {
-                if (!this.startedLoading) {
-                    this.startedLoading = true;
+                if (!this.loadPromise) {
                     const buster = '?rudebuster=' + Math.random();
                     const request = new P.io.Request([
                         'https://trampoline.turbowarp.org/api/projects/$id'.replace('$id', this.id) + buster,
                         'https://trampoline.turbowarp.xyz/api/projects/$id'.replace('$id', this.id) + buster,
                     ]);
-                    request
+                    this.loadPromise = request
                         .setMaxAttempts(1)
                         .ignoreErrors()
                         .load('json')
+                        .catch((err) => {
+                        console.error(err);
+                        throw new TrampolineError(this.id, request.getStatus());
+                    })
                         .then((data) => {
                         if (request.getStatus() === 404 || request.getStatus() === 400) {
                             this.unshared = true;
+                            return this;
                         }
-                        else {
-                            if (data.title) {
-                                this.title = data.title;
-                            }
-                            if (data.project_token) {
-                                this.token = data.project_token;
-                            }
+                        if (!data || !data.project_token) {
+                            throw new TrampolineError(this.id, request.getStatus());
                         }
-                        for (const callback of this.loadCallbacks) {
-                            callback(this);
-                        }
-                        this.loadCallbacks.length = 0;
-                    })
-                        .catch((err) => {
-                        console.error(err);
-                        this.unshared = true;
-                        for (const callback of this.loadCallbacks) {
-                            callback(this);
-                        }
-                        this.loadCallbacks.length = 0;
+                        this.title = data.title || null;
+                        this.token = data.project_token;
+                        return this;
                     });
                 }
-                return new Promise((resolve) => {
-                    this.loadCallbacks.push(resolve);
-                });
+                return this.loadPromise;
             }
             getTitle() {
                 return this.title;
@@ -4061,6 +4057,26 @@ var P;
                 el.appendChild(section3);
                 return el;
             }
+            handleTrampolineError(error) {
+                const el = document.createElement('div');
+                if (error.status === 0) {
+                    el.textContent = 'Could not fetch project metadata due to network error.';
+                }
+                else {
+                    el.textContent = `Could not fetch project metadata due to error ${error.status}.`;
+                }
+                const errorLink = this.createBugReportLink(error);
+                this.generatedErrorLink = errorLink;
+                el.appendChild(document.createTextNode(' '));
+                el.appendChild(Object.assign(document.createElement('a'), {
+                    textContent: 'Click here',
+                    href: errorLink,
+                    target: '_blank',
+                    rel: 'noopener',
+                }));
+                el.appendChild(document.createTextNode(' to file a bug report.'));
+                return el;
+            }
             handleDoesNotExistError(error) {
                 const el = document.createElement('div');
                 el.textContent = P.i18n.translate('player.errorhandler.error.doesnotexist').replace('$id', error.id);
@@ -4071,6 +4087,9 @@ var P;
                 el.className = 'player-error';
                 if (error instanceof CannotAccessProjectError) {
                     el.appendChild(this.handleCannotAccessProjectError(error));
+                }
+                else if (error instanceof TrampolineError) {
+                    el.appendChild(this.handleTrampolineError(error));
                 }
                 else if (error instanceof ProjectDoesNotExistError) {
                     el.appendChild(this.handleDoesNotExistError(error));
